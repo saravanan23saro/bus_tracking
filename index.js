@@ -4,17 +4,17 @@ import { getAnalytics } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
+// Your web app's Firebase configuration. Prefer shared `window.FIREBASE_CONFIG` when present.
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyA5I4b1hKtsGGwKerUL4bTdF7NZlSxAOEM",
-  authDomain: "trackinggps-fb785.firebaseapp.com",
-  databaseURL: "https://trackinggps-fb785-default-rtdb.firebaseio.com",
-  projectId: "trackinggps-fb785",
-  storageBucket: "trackinggps-fb785.firebasestorage.app",
-  messagingSenderId: "391940077434",
-  appId: "1:391940077434:web:788dde22321ab3f00c08c3",
-  measurementId: "G-3093VFRQDF"
+const firebaseConfig = window && window.FIREBASE_CONFIG ? window.FIREBASE_CONFIG : {
+    apiKey: "AIzaSyA5I4b1hKtsGGwKerUL4bTdF7NZlSxAOEM",
+    authDomain: "trackinggps-fb785.firebaseapp.com",
+    databaseURL: "https://trackinggps-fb785-default-rtdb.firebaseio.com",
+    projectId: "trackinggps-fb785",
+    storageBucket: "trackinggps-fb785.firebasestorage.app",
+    messagingSenderId: "391940077434",
+    appId: "1:391940077434:web:788dde22321ab3f00c08c3",
+    measurementId: "G-3093VFRQDF"
 };
 
 // Initialize Firebase

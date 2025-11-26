@@ -93,17 +93,20 @@
 
   <!-- Mapbox JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <script src="firebase-config.js"></script>
 
   <script>
     // Replace with your own Mapbox token and Firebase config
     mapboxgl.accessToken = 'pk.eyJ1Ijoic2FyYXZhbmFuLXNhcm8yMyIsImEiOiJjbWQxanlvamkxa2xtMmpzYTN6MGt1MXhhIn0.jVdubsejzh9jAIIyW_02yw';
 
-    const firebaseConfig = {
+    // Load Firebase config from shared file if available; otherwise fall back to the embedded config.
+    // Make sure to include `firebase-config.js` before this script when you want to use the central config.
+    const firebaseConfig = window.FIREBASE_CONFIG || {
        apiKey: "AIzaSyA5I4b1hKtsGGwKerUL4bTdF7NZlSxAOEM",
   authDomain: "trackinggps-fb785.firebaseapp.com",
   databaseURL: "https://trackinggps-fb785-default-rtdb.firebaseio.com",
   projectId: "trackinggps-fb785",
-  storageBucket: "trackinggps-fb785.firebasestorage.app",
+  storageBucket: "trackinggps-fb785-firebasestorage.app",
   messagingSenderId: "391940077434",
   appId: "1:391940077434:web:788dde22321ab3f00c08c3",
   measurementId: "G-3093VFRQDF"

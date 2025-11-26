@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Student — Bus Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f4f7fb}
+    header{padding:12px 18px;background:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e6ebf0}
+    main{padding:18px}
+    #map{width:100%;height:70vh;border-radius:8px;border:1px solid #ddd}
+    .info{margin-top:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <div>Student View</div>
+    <div id="busLabel"></div>
+  </header>
+  <main>
+    <div>
+      <label for="busSelect">Bus ID</label>
+      <input id="busSelect" placeholder="e.g. bus1" />
+      <button id="watchBtn">Watch Bus</button>
+      <button id="stopBtn" disabled>Stop</button>
+    </div>
+
+    <div id="map">Loading map...</div>
+    <div class="info" id="info">No data yet</div>
+  </main>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script>
+    let map = null;
+    try {
+      const defaultCenter = [17.3850, 78.4867]; // [lat, lng]
+      map = L.map('map').setView(defaultCenter, 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    } catch (err) {
+      console.error('Leaflet init failed', err);
+      document.getElementById('map').textContent = 'Map init error: ' + (err && err.message || err);
+    }
+    let marker = null;
+    let currentRef = null;
+
+    if (!window.FIREBASE_CONFIG || window.FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) {
+      console.warn('firebase-config.js not configured. Please set real Firebase config in firebase-config.js');
+    }
+
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(window.FIREBASE_CONFIG);
+    }
+    const database = firebase.database();
+
+    const busInput = document.getElementById('busSelect');
+    const watchBtn = document.getElementById('watchBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const info = document.getElementById('info');
+
+    // prefill from login session if exists
+    const savedBus = localStorage.getItem('busTracker.busId');
+    if (savedBus) { busInput.value = savedBus; document.getElementById('busLabel').textContent = savedBus; }
+
+    function startWatching() {
+      const busId = busInput.value.trim();
+      if (!busId) { alert('Enter bus id'); return; }
+
+      if (currentRef) currentRef.off();
+      currentRef = database.ref(`buses/${busId}/location`);
+
+      currentRef.on('value', snap => {
+        const d = snap.val();
+        if (d && d.lat && d.lng) {
+          const lngLat = [d.lng, d.lat];
+          if (map) {
+            if (!marker) { marker = L.marker([d.lat, d.lng]).addTo(map); }
+            else { marker.setLatLng([d.lat, d.lng]); }
+            map.setView([d.lat, d.lng], 15);
+          }
+          info.textContent = `Last update: ${new Date(d.timestamp || Date.now()).toLocaleTimeString()} — driver: ${d.driver || 'unknown'}`;
+          stopBtn.disabled = false;
+        } else {
+          info.textContent = 'No valid location found for ' + busId;
+        }
+      });
+    }
+
+    function stopWatching() {
+      if (currentRef) { currentRef.off(); currentRef = null; info.textContent = 'Stopped'; stopBtn.disabled = true; }
+    }
+
+    watchBtn.addEventListener('click', startWatching);
+    stopBtn.addEventListener('click', stopWatching);
+  </script>
+</body>
+</html>
