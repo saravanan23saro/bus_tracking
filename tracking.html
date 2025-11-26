@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live Bus Tracking</title>
+
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.16.1/mapbox-gl.css" rel="stylesheet" />
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f7f9fc;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 20px 0;
+      font-size: 28px;
+      color: #2c3e50;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    select {
+      width: 100%;
+      max-width: 300px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+    }
+
+    #map {
+      width: 100%;
+      height: 500px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-top: 20px;
+      border: 2px solid #e0e0e0;
+    }
+
+    .info-box {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #e9f7ef;
+      border-left: 5px solid #28a745;
+      border-radius: 5px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 10px;
+      }
+
+      #map {
+        height: 400px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Live Bus Tracking</h2>
+
+    <label for="busSelect">Choose Bus:</label>
+    <select id="busSelect">
+      <option disabled selected>Select bus</option>
+      <option value="bus1">Bus 1</option>
+      <option value="bus2">Bus 2</option>
+    </select>
+
+    <div id="map">Loading map...</div>
+
+    <div class="info-box">
+      Selected bus location updates will appear on the map in real-time.
+    </div>
+  </div>
+
+  <!-- Mapbox JS -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.16.1/mapbox-gl.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <script>
+    // ✅ Replace with your Mapbox Access Token
+    mapboxgl.accessToken = 'pk.eyJ1Ijoic2FyYXZhbmFuLXNhcm8yMyIsImEiOiJjbWQxanlvamkxa2xtMmpzYTN6MGt1MXhhIn0.jVdubsejzh9jAIIyW_02yw';
+
+    // ✅ Initialize the map
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [78.4867, 17.3850], // Default location
+      zoom: 12
+    });
+
+    let marker = null;
+    let currentRef = null;
+
+    // ✅ Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyA5I4b1hKtsGGwKerUL4bTdF7NZlSxAOEM",
+      authDomain: "trackinggps-fb785.firebaseapp.com",
+      databaseURL: "https://trackinggps-fb785-default-rtdb.firebaseio.com",
+      projectId: "trackinggps-fb785",
+      storageBucket: "trackinggps-fb785.appspot.com",
+      messagingSenderId: "391940077434",
+      appId: "1:391940077434:web:788dde22321ab3f00c08c3",
+      measurementId: "G-3093VFRQDF"
+    };
+
+    // ✅ Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const busSelect = document.getElementById('busSelect');
+
+    busSelect.addEventListener('change', function () {
+      const busId = this.value;
+
+      // 🔄 Detach previous listener
+      if (currentRef) currentRef.off();
+
+      currentRef = database.ref(`buses/${busId}/location`);
+
+      currentRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.lat && data.lng) {
+          const newLngLat = [data.lng, data.lat];
+
+          if (!marker) {
+            marker = new mapboxgl.Marker({ color: 'red' })
+              .setLngLat(newLngLat)
+              .addTo(map);
+          } else {
+            marker.setLngLat(newLngLat);
+          }
+
+          map.flyTo({ center: newLngLat, zoom: 14 });
+        } else {
+          console.warn("No valid location data found for " + busId);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
