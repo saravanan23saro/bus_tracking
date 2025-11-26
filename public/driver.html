@@ -25,6 +25,13 @@
       <span id="status" style="margin-left:12px;color:#333">Not sharing</span>
     </div>
 
+    <div id="insecureNotice" style="display:none;padding:10px;background:#ffe6e6;border:1px solid #ffbcbc;border-radius:6px;margin-bottom:10px;color:#900">
+      Warning: this page is not served over HTTPS — browser geolocation may be blocked.
+      <div style="margin-top:6px;font-size:13px;color:#333">
+        Options: (1) Open on this machine using <code>localhost</code>, (2) deploy to a host with HTTPS (eg. Vercel), or (3) run a secure tunnel like <code>ngrok</code>.
+      </div>
+    </div>
+
     <div id="map">Map loading...</div>
     <div class="controls" style="margin-top:8px">
       <button id="startBtn">Start Sharing</button>
@@ -75,11 +82,20 @@
     }
     const database = firebase.database();
 
+    // check secure origin: geolocation requires https or localhost
+    const isSecureOrigin = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!isSecureOrigin) {
+      const notice = document.getElementById('insecureNotice');
+      if (notice) notice.style.display = 'block';
+      document.getElementById('startBtn').disabled = true;
+    }
+
     let watchId = null;
     function setStatus(text) { statusEl.textContent = text; }
 
     document.getElementById('startBtn').addEventListener('click', () => {
       if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
+      if (!isSecureOrigin) { alert('Geolocation requires a secure origin (HTTPS or localhost). See the banner for options.'); return; }
       if (watchId !== null) return;
 
       watchId = navigator.geolocation.watchPosition(pos => {
