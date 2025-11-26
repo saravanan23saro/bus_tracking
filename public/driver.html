@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Driver — Bus Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f4f7fb}
+    header{padding:12px 18px;background:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e6ebf0}
+    main{padding:18px}
+    #map{width:100%;height:60vh;border-radius:8px;border:1px solid #ddd}
+    .controls{margin-top:12px}
+    .status{margin-top:8px;padding:10px;background:#fff;border-radius:6px;border:1px solid #e6ebf0}
+  </style>
+</head>
+<body>
+  <header>
+    <div>Driver Dashboard</div>
+    <div id="busLabel"></div>
+  </header>
+  <main>
+    <div>
+      <label for="busInput">Bus ID</label>
+      <input id="busInput" placeholder="e.g. bus1" />
+      <button id="saveBusBtn">Save Bus</button>
+    </div>
+
+    <div id="map">Map loading...</div>
+    <div class="controls">
+      <button id="startBtn">Start Sharing Location</button>
+      <button id="stopBtn" disabled>Stop</button>
+    </div>
+    <div class="status" id="status">Not sharing location</div>
+  </main>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script>
+    const savedBus = localStorage.getItem('busTracker.busId') || '';
+    const name = localStorage.getItem('busTracker.name') || 'driver';
+    document.getElementById('busLabel').textContent = savedBus;
+    const busInput = document.getElementById('busInput');
+    const saveBusBtn = document.getElementById('saveBusBtn');
+    if (savedBus) busInput.value = savedBus;
+    saveBusBtn.addEventListener('click', () => {
+      const v = busInput.value.trim();
+      if (!v) { alert('Enter a bus id'); return; }
+      localStorage.setItem('busTracker.busId', v);
+      document.getElementById('busLabel').textContent = v;
+      setStatus('Saved bus id: ' + v);
+    });
+
+    let map = null;
+    try {
+      const defaultCenter = [17.3850, 78.4867];
+      map = L.map('map').setView(defaultCenter, 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    } catch (err) {
+      console.error('Leaflet init failed', err);
+      document.getElementById('map').textContent = 'Map init error: ' + (err && err.message || err);
+    }
+    let marker = null;
+
+    if (!window.FIREBASE_CONFIG || window.FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) {
+      console.warn('firebase-config.js not configured.');
+    }
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(window.FIREBASE_CONFIG);
+    }
+    const database = firebase.database();
+
+    let watchId = null;
+    const statusEl = document.getElementById('status');
+    function setStatus(text) { statusEl.textContent = text; }
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
+      if (watchId !== null) return;
+      watchId = navigator.geolocation.watchPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const payload = { lat, lng, timestamp: Date.now(), driver: name };
+        const busId = localStorage.getItem('busTracker.busId');
+        if (!busId) { setStatus('No bus id saved — please save before starting'); return; }
+        database.ref(`buses/${busId}/location`).set(payload).catch(err => console.error(err));
+
+        if (map) {
+          if (!marker) { marker = L.marker([lat, lng]).addTo(map); }
+          else { marker.setLatLng([lat, lng]); }
+          map.setView([lat, lng], 15);
+        }
+        setStatus('Sharing location — ' + new Date(payload.timestamp).toLocaleTimeString());
+        document.getElementById('stopBtn').disabled = false;
+      }, err => { console.error(err); setStatus('Error obtaining location: ' + (err.message || err.code)); }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+    });
+
+    document.getElementById('stopBtn').addEventListener('click', () => { if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; setStatus('Stopped sharing'); document.getElementById('stopBtn').disabled = true; } });
+  </script>
+</body>
+</html>
