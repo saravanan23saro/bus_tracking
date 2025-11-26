@@ -19,6 +19,7 @@
     <div>Driver Dashboard</div>
     <div id="busLabel"></div>
   </header>
+  <div id="debug" style="position:fixed;right:12px;top:12px;background:#fff;border:1px solid #ddd;padding:8px;font-size:12px;z-index:10000;max-width:320px;white-space:pre-wrap">Debug</div>
   <main>
     <div>
       <label for="busInput">Bus ID</label>
@@ -42,6 +43,7 @@
   <script src="firebase-config.js"></script>
 
   <script>
+    // read session (or let driver provide bus id)
     const savedBus = localStorage.getItem('busTracker.busId') || '';
     const name = localStorage.getItem('busTracker.name') || 'driver';
     document.getElementById('busLabel').textContent = savedBus;
@@ -56,9 +58,10 @@
       setStatus('Saved bus id: ' + v);
     });
 
+    // Leaflet map (no Mapbox/WebGL)
     let map = null;
     try {
-      const defaultCenter = [17.3850, 78.4867];
+      const defaultCenter = [17.3850, 78.4867]; // [lat, lng]
       map = L.map('map').setView(defaultCenter, 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     } catch (err) {
@@ -67,8 +70,9 @@
     }
     let marker = null;
 
+    // Initialize Firebase using shared config (or warn if not set)
     if (!window.FIREBASE_CONFIG || window.FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) {
-      console.warn('firebase-config.js not configured.');
+      console.warn('firebase-config.js not configured. Please set real Firebase config in firebase-config.js');
     }
     if (!firebase.apps || !firebase.apps.length) {
       firebase.initializeApp(window.FIREBASE_CONFIG);
@@ -77,30 +81,65 @@
 
     let watchId = null;
     const statusEl = document.getElementById('status');
+
     function setStatus(text) { statusEl.textContent = text; }
 
     document.getElementById('startBtn').addEventListener('click', () => {
       if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
       if (watchId !== null) return;
+
       watchId = navigator.geolocation.watchPosition(pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const payload = { lat, lng, timestamp: Date.now(), driver: name };
+
+        // write to realtime database at buses/{busId}/location
         const busId = localStorage.getItem('busTracker.busId');
         if (!busId) { setStatus('No bus id saved — please save before starting'); return; }
         database.ref(`buses/${busId}/location`).set(payload).catch(err => console.error(err));
 
+        // update map marker (Leaflet)
         if (map) {
           if (!marker) { marker = L.marker([lat, lng]).addTo(map); }
           else { marker.setLatLng([lat, lng]); }
           map.setView([lat, lng], 15);
         }
+
         setStatus('Sharing location — ' + new Date(payload.timestamp).toLocaleTimeString());
         document.getElementById('stopBtn').disabled = false;
-      }, err => { console.error(err); setStatus('Error obtaining location: ' + (err.message || err.code)); }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+      }, err => {
+        console.error(err);
+        setStatus('Error obtaining location: ' + (err.message || err.code));
+      }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
     });
 
-    document.getElementById('stopBtn').addEventListener('click', () => { if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; setStatus('Stopped sharing'); document.getElementById('stopBtn').disabled = true; } });
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; setStatus('Stopped sharing'); document.getElementById('stopBtn').disabled = true; }
+    });
+
+    // Debug panel updates
+    function updateDebug() {
+      try {
+        const dbg = document.getElementById('debug');
+        if (!dbg) return;
+        const rows = [];
+        rows.push('L defined: ' + (typeof L !== 'undefined'));
+        rows.push('map object: ' + (!!map));
+        rows.push('marker present: ' + (!!marker));
+        rows.push('FIREBASE_CONFIG: ' + (window.FIREBASE_CONFIG ? 'loaded' : 'missing'));
+        rows.push('databaseURL: ' + (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.databaseURL ? window.FIREBASE_CONFIG.databaseURL : 'n/a'));
+        rows.push('protocol: ' + location.protocol + ' (needs https for geolocation on some browsers)');
+        dbg.innerText = rows.join('\n');
+        console.log('DEBUG:', rows.join(' | '));
+      } catch (e) { console.error(e); }
+    }
+    updateDebug();
+    setInterval(updateDebug, 3000);
+    window.addEventListener('error', (ev) => {
+      const dbg = document.getElementById('debug');
+      if (dbg) dbg.innerText += '\nERROR: ' + (ev && ev.message || ev);
+      console.error('Window error', ev);
+    });
   </script>
 </body>
 </html>

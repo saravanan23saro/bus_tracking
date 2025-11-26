@@ -40,6 +40,7 @@
 
       if (!busId) { alert('Please enter a bus id (e.g. bus1)'); return; }
 
+      // store session info locally
       localStorage.setItem('busTracker.role', role);
       localStorage.setItem('busTracker.busId', busId);
       if (name) localStorage.setItem('busTracker.name', name);
