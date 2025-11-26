@@ -19,6 +19,7 @@
     <div>Driver Dashboard</div>
     <div id="busLabel"></div>
   </header>
+  <div id="debug" style="position:fixed;right:12px;top:12px;background:#fff;border:1px solid #ddd;padding:8px;font-size:12px;z-index:10000;max-width:320px;white-space:pre-wrap">Debug</div>
   <main>
     <div>
       <label for="busInput">Bus ID</label>
@@ -114,6 +115,30 @@
 
     document.getElementById('stopBtn').addEventListener('click', () => {
       if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; setStatus('Stopped sharing'); document.getElementById('stopBtn').disabled = true; }
+    });
+
+    // Debug panel updates
+    function updateDebug() {
+      try {
+        const dbg = document.getElementById('debug');
+        if (!dbg) return;
+        const rows = [];
+        rows.push('L defined: ' + (typeof L !== 'undefined'));
+        rows.push('map object: ' + (!!map));
+        rows.push('marker present: ' + (!!marker));
+        rows.push('FIREBASE_CONFIG: ' + (window.FIREBASE_CONFIG ? 'loaded' : 'missing'));
+        rows.push('databaseURL: ' + (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.databaseURL ? window.FIREBASE_CONFIG.databaseURL : 'n/a'));
+        rows.push('protocol: ' + location.protocol + ' (needs https for geolocation on some browsers)');
+        dbg.innerText = rows.join('\n');
+        console.log('DEBUG:', rows.join(' | '));
+      } catch (e) { console.error(e); }
+    }
+    updateDebug();
+    setInterval(updateDebug, 3000);
+    window.addEventListener('error', (ev) => {
+      const dbg = document.getElementById('debug');
+      if (dbg) dbg.innerText += '\nERROR: ' + (ev && ev.message || ev);
+      console.error('Window error', ev);
     });
   </script>
 </body>
