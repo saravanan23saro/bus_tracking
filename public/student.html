@@ -16,19 +16,16 @@
 <body>
   <header>
     <div>Student View</div>
-    <div id="busLabel"></div>
   </header>
-  <div id="debug" style="position:fixed;right:12px;top:12px;background:#fff;border:1px solid #ddd;padding:8px;font-size:12px;z-index:10000;max-width:320px;white-space:pre-wrap">Debug</div>
   <main>
-    <div>
-      <label for="busSelect">Bus ID</label>
-      <input id="busSelect" placeholder="e.g. bus1" />
-      <button id="watchBtn">Watch Bus</button>
-      <button id="stopBtn" disabled>Stop</button>
+    <div style="margin-bottom:8px">
+      <input id="busSelect" placeholder="Enter Bus ID (e.g. bus1)" style="padding:6px;border:1px solid #ccc;border-radius:4px;width:220px" />
+      <button id="watchBtn" style="margin-left:8px;padding:6px 10px">Watch</button>
+      <button id="stopBtn" disabled style="margin-left:6px;padding:6px 10px">Stop</button>
+      <span id="lastUpdate" style="margin-left:12px;color:#333">&nbsp;</span>
     </div>
 
     <div id="map">Loading map...</div>
-    <div class="info" id="info">No data yet</div>
   </main>
 
   <!-- Leaflet -->
@@ -38,23 +35,18 @@
   <script src="firebase-config.js"></script>
 
   <script>
+    // Minimal student view: enter a bus id and watch live location
     let map = null;
     try {
-      const defaultCenter = [17.3850, 78.4867]; // [lat, lng]
+      const defaultCenter = [17.3850, 78.4867];
       map = L.map('map').setView(defaultCenter, 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     } catch (err) {
-      console.error('Leaflet init failed', err);
       document.getElementById('map').textContent = 'Map init error: ' + (err && err.message || err);
-    }
-    let marker = null;
-    let currentRef = null;
-
-    if (!window.FIREBASE_CONFIG || window.FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) {
-      console.warn('firebase-config.js not configured. Please set real Firebase config in firebase-config.js');
     }
 
     if (!firebase.apps || !firebase.apps.length) {
+      if (!window.FIREBASE_CONFIG) throw new Error('Missing firebase-config.js');
       firebase.initializeApp(window.FIREBASE_CONFIG);
     }
     const database = firebase.database();
@@ -62,66 +54,41 @@
     const busInput = document.getElementById('busSelect');
     const watchBtn = document.getElementById('watchBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const info = document.getElementById('info');
+    const lastUpdate = document.getElementById('lastUpdate');
 
-    // prefill from login session if exists
-    const savedBus = localStorage.getItem('busTracker.busId');
-    if (savedBus) { busInput.value = savedBus; document.getElementById('busLabel').textContent = savedBus; }
+    let currentRef = null;
+    let marker = null;
+
+    // auto-start if saved
+    const saved = localStorage.getItem('busTracker.busId');
+    if (saved) { busInput.value = saved; startWatching(); }
 
     function startWatching() {
       const busId = busInput.value.trim();
-      if (!busId) { alert('Enter bus id'); return; }
-
+      if (!busId) { alert('Enter bus id to watch'); return; }
+      localStorage.setItem('busTracker.busId', busId);
       if (currentRef) currentRef.off();
       currentRef = database.ref(`buses/${busId}/location`);
-
       currentRef.on('value', snap => {
         const d = snap.val();
-        if (d && d.lat && d.lng) {
-          const lngLat = [d.lng, d.lat];
-          if (map) {
-            if (!marker) { marker = L.marker([d.lat, d.lng]).addTo(map); }
-            else { marker.setLatLng([d.lat, d.lng]); }
-            map.setView([d.lat, d.lng], 15);
-          }
-          info.textContent = `Last update: ${new Date(d.timestamp || Date.now()).toLocaleTimeString()} — driver: ${d.driver || 'unknown'}`;
+        if (d && typeof d.lat === 'number' && typeof d.lng === 'number') {
+          if (!marker) marker = L.marker([d.lat, d.lng]).addTo(map);
+          else marker.setLatLng([d.lat, d.lng]);
+          map.setView([d.lat, d.lng], 15);
+          lastUpdate.textContent = 'Last: ' + new Date(d.timestamp || Date.now()).toLocaleTimeString();
           stopBtn.disabled = false;
         } else {
-          info.textContent = 'No valid location found for ' + busId;
+          lastUpdate.textContent = 'No location yet';
         }
       });
     }
 
     function stopWatching() {
-      if (currentRef) { currentRef.off(); currentRef = null; info.textContent = 'Stopped'; stopBtn.disabled = true; }
+      if (currentRef) { currentRef.off(); currentRef = null; stopBtn.disabled = true; lastUpdate.textContent = 'Stopped'; }
     }
 
     watchBtn.addEventListener('click', startWatching);
     stopBtn.addEventListener('click', stopWatching);
-
-    // Debug panel updates
-    function updateDebug() {
-      try {
-        const dbg = document.getElementById('debug');
-        if (!dbg) return;
-        const rows = [];
-        rows.push('L defined: ' + (typeof L !== 'undefined'));
-        rows.push('map object: ' + (!!map));
-        rows.push('marker present: ' + (!!marker));
-        rows.push('FIREBASE_CONFIG: ' + (window.FIREBASE_CONFIG ? 'loaded' : 'missing'));
-        rows.push('databaseURL: ' + (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.databaseURL ? window.FIREBASE_CONFIG.databaseURL : 'n/a'));
-        rows.push('protocol: ' + location.protocol + ' (needs https for geolocation on some browsers)');
-        dbg.innerText = rows.join('\n');
-        console.log('DEBUG:', rows.join(' | '));
-      } catch (e) { console.error(e); }
-    }
-    updateDebug();
-    setInterval(updateDebug, 3000);
-    window.addEventListener('error', (ev) => {
-      const dbg = document.getElementById('debug');
-      if (dbg) dbg.innerText += '\nERROR: ' + (ev && ev.message || ev);
-      console.error('Window error', ev);
-    });
   </script>
 </body>
 </html>
