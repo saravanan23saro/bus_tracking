@@ -5,31 +5,29 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Student — Bus Tracker</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f4f7fb}
-    header{padding:12px 18px;background:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e6ebf0}
-    main{padding:18px}
-    #map{width:100%;height:70vh;border-radius:8px;border:1px solid #ddd}
-    .info{margin-top:12px}
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
-    <div>Student View</div>
-    <div id="busLabel"></div>
-  </header>
-  <div id="debug" style="position:fixed;right:12px;top:12px;background:#fff;border:1px solid #ddd;padding:8px;font-size:12px;z-index:10000;max-width:320px;white-space:pre-wrap">Debug</div>
-  <div id="insecureNotice" style="display:none;position:fixed;left:12px;top:12px;background:#fff4e6;border:1px solid #ffd6a6;padding:10px;z-index:10001;max-width:320px;color:#774400;border-radius:6px">This page is not secure (not HTTPS). For live geolocation use, open via <code>localhost</code>, deploy to HTTPS, or use a secure tunnel like <code>ngrok</code>.</div>
-  <main>
-    <div>
-      <label for="busSelect">Bus ID</label>
-      <input id="busSelect" placeholder="e.g. bus1" />
-      <button id="watchBtn">Watch Bus</button>
-      <button id="stopBtn" disabled>Stop</button>
+  <header class="app-header">
+    <div class="title">Student View</div>
+    <div id="busLabel" class="muted small" style="margin-left:8px"></div>
+    <div class="hdr-controls">
+      <input id="busSelect" placeholder="Bus ID (e.g. bus1)" />
+      <button id="watchBtn" class="btn">Watch</button>
+      <button id="stopBtn" class="btn ghost" disabled>Stop</button>
+      <button id="logoutBtn" class="btn ghost" style="margin-left:8px">Logout</button>
     </div>
-
+  </header>
+  
+  <div id="debug" style="display:none">Debug</div>
+  <div id="insecureNotice" style="display:none">This page is not secure (not HTTPS). For live geolocation use, open via <code>localhost</code>, deploy to HTTPS, or use a secure tunnel like <code>ngrok</code>.</div>
+  <main class="app-main">
     <div id="map">Loading map...</div>
-    <div class="info" id="info">No data yet</div>
+    <div class="info-row">
+      <div class="info" id="info">No data yet</div>
+      <div class="small">Remaining: <span id="remaining">n/a</span></div>
+      <div class="small">ETA: <span id="eta">n/a</span></div>
+    </div>
   </main>
 
   <!-- Leaflet -->
@@ -41,7 +39,7 @@
   <script>
     let map = null;
     try {
-      const defaultCenter = [17.3850, 78.4867]; // [lat, lng]
+      const defaultCenter = [10.9974, 76.9589]; // [lat, lng]
       map = L.map('map').setView(defaultCenter, 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     } catch (err) {
@@ -50,6 +48,8 @@
     }
     let marker = null;
     let currentRef = null;
+    let routeLine = null;
+    let studentLocation = null;
 
     if (!window.FIREBASE_CONFIG || window.FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) {
       console.warn('firebase-config.js not configured. Please set real Firebase config in firebase-config.js');
@@ -81,24 +81,60 @@
       const busId = busInput.value.trim();
       if (!busId) { alert('Enter bus id'); return; }
 
+      // Prompt for student location if not set
+      if (!studentLocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+          studentLocation = [pos.coords.lat, pos.coords.lng];
+        }, function() {
+          // fallback: use default center
+          studentLocation = [10.9974, 76.9589];
+        });
+      }
+
       if (currentRef) currentRef.off();
       currentRef = database.ref(`buses/${busId}/location`);
 
       currentRef.on('value', snap => {
         const d = snap.val();
         if (d && d.lat && d.lng) {
-          const lngLat = [d.lng, d.lat];
+          const driverLatLng = [d.lat, d.lng];
           if (map) {
-            if (!marker) { marker = L.marker([d.lat, d.lng]).addTo(map); }
-            else { marker.setLatLng([d.lat, d.lng]); }
-            map.setView([d.lat, d.lng], 15);
+            if (!marker) { marker = L.marker(driverLatLng).addTo(map); }
+            else { marker.setLatLng(driverLatLng); }
+            map.setView(driverLatLng, 15);
           }
           info.textContent = `Last update: ${new Date(d.timestamp || Date.now()).toLocaleTimeString()} — driver: ${d.driver || 'unknown'}`;
           stopBtn.disabled = false;
+
+          // Draw route from driver to student
+          if (studentLocation) {
+            fetchRoute(driverLatLng, studentLocation);
+          }
         } else {
           info.textContent = 'No valid location found for ' + busId;
         }
       });
+    }
+
+    function fetchRoute(driverLatLng, studentLatLng) {
+      // OSRM API expects [lng,lat]
+      const url = `https://router.project-osrm.org/route/v1/driving/${driverLatLng[1]},${driverLatLng[0]};${studentLatLng[1]},${studentLatLng[0]}?overview=full&geometries=geojson`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          if (data.routes && data.routes.length) {
+            const route = data.routes[0];
+            const coords = route.geometry.coordinates.map(c => [c[1], c[0]]); // [lat,lng]
+            if (routeLine) { map.removeLayer(routeLine); }
+            routeLine = L.polyline(coords, { color: '#2b6cdf', weight: 5, opacity: 0.8 }).addTo(map);
+            document.getElementById('remaining').textContent = (route.distance/1000).toFixed(2) + ' km';
+            document.getElementById('eta').textContent = Math.ceil(route.duration/60) + ' min';
+          }
+        })
+        .catch(() => {
+          document.getElementById('remaining').textContent = 'n/a';
+          document.getElementById('eta').textContent = 'n/a';
+        });
     }
 
     function stopWatching() {
@@ -107,6 +143,12 @@
 
     watchBtn.addEventListener('click', startWatching);
     stopBtn.addEventListener('click', stopWatching);
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('busTracker.role');
+      localStorage.removeItem('busTracker.busId');
+      localStorage.removeItem('busTracker.name');
+      location.href = 'login.html';
+    });
 
     // Debug panel updates
     function updateDebug() {

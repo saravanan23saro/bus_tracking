@@ -5,39 +5,27 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Driver — Bus Tracker</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f4f7fb}
-    header{padding:12px 18px;background:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e6ebf0}
-    main{padding:18px}
-    #map{width:100%;height:60vh;border-radius:8px;border:1px solid #ddd}
-    .controls{margin-top:12px}
-    .status{margin-top:8px;padding:10px;background:#fff;border-radius:6px;border:1px solid #e6ebf0}
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
-  <header>
-    <div>Driver Dashboard</div>
+  <header class="app-header">
+    <div class="title">Driver Dashboard</div>
+    <div class="hdr-controls">
+      <input id="busInput" placeholder="Bus ID (e.g. bus1)" />
+      <button id="saveBusBtn" class="btn">Save</button>
+      <button id="logoutBtn" class="btn ghost" style="margin-left:8px">Logout</button>
+    </div>
   </header>
-  <main>
-    <div style="margin-bottom:8px">
-      <input id="busInput" placeholder="Enter Bus ID (e.g. bus1)" style="padding:6px;border:1px solid #ccc;border-radius:4px;width:220px" />
-      <button id="saveBusBtn" style="margin-left:8px;padding:6px 10px">Save</button>
-      <span id="status" style="margin-left:12px;color:#333">Not sharing</span>
-    </div>
-
-    <div id="insecureNotice" style="display:none;padding:10px;background:#ffe6e6;border:1px solid #ffbcbc;border-radius:6px;margin-bottom:10px;color:#900">
-      Warning: this page is not served over HTTPS — browser geolocation may be blocked.
-      <div style="margin-top:6px;font-size:13px;color:#333">
-        Options: (1) Open on this machine using <code>localhost</code>, (2) deploy to a host with HTTPS (eg. Vercel), or (3) run a secure tunnel like <code>ngrok</code>.
-      </div>
-    </div>
-
+  <main class="app-main">
     <div id="map">Map loading...</div>
-    <div class="controls" style="margin-top:8px">
-      <button id="startBtn">Start Sharing</button>
-      <button id="stopBtn" disabled style="margin-left:6px">Stop</button>
+    <div class="bottom-bar">
+      <div class="controls">
+        <button id="startBtn" class="btn">Start Sharing</button>
+        <button id="stopBtn" class="btn ghost" disabled>Stop</button>
+      </div>
+      <div class="status" id="status">Not sharing</div>
     </div>
   </main>
+  
 
   <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -64,7 +52,7 @@
     // Leaflet map (no Mapbox/WebGL)
     let map = null;
     try {
-      const defaultCenter = [17.3850, 78.4867]; // [lat, lng]
+      const defaultCenter = [10.9974, 76.9589]; // [lat, lng]
       map = L.map('map').setView(defaultCenter, 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     } catch (err) {
@@ -92,6 +80,13 @@
 
     let watchId = null;
     function setStatus(text) { statusEl.textContent = text; }
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('busTracker.role');
+      localStorage.removeItem('busTracker.busId');
+      localStorage.removeItem('busTracker.name');
+      location.href = 'login.html';
+    });
 
     document.getElementById('startBtn').addEventListener('click', () => {
       if (!navigator.geolocation) { alert('Geolocation not supported'); return; }

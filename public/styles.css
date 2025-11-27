@@ -1,0 +1,127 @@
+/* Shared app styles for Bus Tracker (responsive + mobile-first) */
+:root{
+  --accent:#2b6cdf;
+  --muted:#6b7280;
+  --bg:#f4f7fb;
+  --card:#ffffff;
+}
+html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
+body{background:var(--bg);color:#0f1724;-webkit-font-smoothing:antialiased}
+
+/* Generic components */
+.container{max-width:1024px;margin:0 auto;padding:0 16px}
+.btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(43,108,223,0.12)}
+/* Button enhancements */
+.btn, .btn.ghost {
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  box-shadow: 0 2px 8px rgba(43,108,223,0.08);
+}
+.btn:hover, .btn:focus {
+  background: #174ea6;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(43,108,223,0.12);
+}
+.btn.ghost:hover, .btn.ghost:focus {
+  background: rgba(43,108,223,0.08);
+  color: #174ea6;
+}
+.btn:active {
+  background: #123a7a;
+}
+input,select,textarea{font-size:15px;padding:10px;border-radius:8px;border:1px solid #e6edf3}
+
+/* Login card */
+.login-page{height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:var(--card);padding:24px;border-radius:10px;box-shadow:0 8px 24px rgba(18,38,63,0.08);width:100%;max-width:360px}
+.card {
+  border: 1px solid #e6ebf0;
+  transition: box-shadow 0.18s, border 0.18s;
+}
+.card:hover {
+  box-shadow: 0 12px 32px rgba(18,38,63,0.12);
+  border: 1px solid #b6c2d6;
+}
+.card h2{margin:0 0 12px;font-size:20px}
+label{display:block;margin-top:12px;font-weight:600;color:#0f1724}
+label {
+  letter-spacing: 0.01em;
+  font-size: 15px;
+}
+
+/* Make form controls inside card fill width for consistent layout */
+.card input, .card select, .card textarea, .card button{width:100%;margin-top:10px;box-sizing:border-box}
+.card .btn{padding:12px;border-radius:10px}
+
+/* Header used on driver/student pages */
+header.app-header{height:56px;padding:8px 14px;background:var(--card);display:flex;align-items:center;gap:12px;border-bottom:1px solid #e6ebf0;position:fixed;left:0;right:0;top:0;z-index:1200}
+.app-header .title{font-weight:600;font-size:16px}
+.app-header .title {
+  letter-spacing: 0.02em;
+  color: #174ea6;
+  text-shadow: 0 1px 0 #e6ebf0;
+}
+.hdr-controls{margin-left:auto;display:flex;align-items:center;gap:8px}
+.hdr-controls input{padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;width:160px}
+.hdr-controls input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(43,108,223,0.12);
+}
+
+/* Map and main layout */
+main.app-main{padding-top:68px;padding-bottom:84px;height:100%;box-sizing:border-box}
+#map{width:100%;height:calc(100vh - 68px - 84px);border-radius:8px;box-shadow:0 2px 6px rgba(2,6,23,0.06)}
+#map {
+  border: 2px solid #e6ebf0;
+  background: #e6ebf0;
+  transition: box-shadow 0.18s, border 0.18s;
+}
+
+/* Bottom control bar for driver */
+.bottom-bar{position:fixed;left:0;right:0;bottom:0;height:84px;background:var(--card);border-top:1px solid #e6ebf0;display:flex;align-items:center;gap:12px;padding:12px 14px;z-index:1200}
+.bottom-bar .controls{display:flex;gap:8px;flex:1}
+.bottom-bar {
+  box-shadow: 0 -2px 12px rgba(18,38,63,0.08);
+}
+.status{font-size:14px;color:var(--muted)}
+
+/* Student info row */
+.info-row{margin-top:10px;display:flex;gap:12px;align-items:center}
+.info-row {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 1px 4px rgba(18,38,63,0.04);
+  margin-bottom: 8px;
+}
+.info-row .small{font-size:13px;color:var(--muted)}
+
+/* debug & insecure notices */
+#debug{position:fixed;right:12px;top:12px;background:var(--card);border:1px solid #e6ebf0;padding:8px;font-size:12px;z-index:10000;max-width:320px;white-space:pre-wrap}
+#debug {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(18,38,63,0.10);
+}
+#insecureNotice{display:none;padding:10px;background:#fff4e6;border:1px solid #ffd6a6;padding:10px;z-index:10001;max-width:320px;color:#774400;border-radius:6px}
+#insecureNotice {
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(255,214,166,0.10);
+}
+
+/* Routing polyline style override (Leaflet) */
+.leaflet-container .leaflet-polyline { pointer-events: none }
+
+/* Mobile responsive tweaks */
+@media (max-width:520px){
+  .hdr-controls input{width:120px}
+  .btn{padding:10px 14px;border-radius:10px}
+  header.app-header .title{font-size:15px}
+  #map{height:calc(100vh - 68px - 100px)}
+  .bottom-bar{height:100px}
+}
+
+/* Utilities */
+.muted{color:var(--muted)}
+.muted {
+  font-style: italic;
+}
