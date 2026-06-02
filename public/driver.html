@@ -4,28 +4,92 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Driver — Bus Tracker</title>
+  <meta name="theme-color" content="#2563EB">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="styles.css" />
+  <style>
+    :root {
+      --primary: #2563EB;
+      --accent: #FACC15;
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --text: #0F172A;
+      --muted: #64748B;
+      --border: #E2E8F0;
+    }
+
+    body.dark-mode {
+      --bg: #0F172A;
+      --card: #1E293B;
+      --text: #F1F5F9;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
 </head>
-  <header class="app-header">
-    <div class="title">Driver Dashboard</div>
-    <div class="hdr-controls">
-      <input id="busInput" placeholder="Bus ID (e.g. bus1)" />
-      <button id="saveBusBtn" class="btn">Save</button>
-      <button id="logoutBtn" class="btn ghost" style="margin-left:8px">Logout</button>
-    </div>
+<body>
+  <!-- HTTPS Warning Banner -->
+  <div id="httpsWarning" style="background:#FEF3C7;border-bottom:2px solid #F59E0B;padding:12px 16px;color:#92400E;display:none;position:fixed;top:0;left:0;right:0;z-index:1100;font-weight:600;">
+    ⚠️ Location sharing works best with HTTPS. Localhost/127.0.0.1 also works.
+  </div>
+
+  <!-- Header with Yellow Driver Badge -->
+  <header style="background:#1E293B;color:#F1F5F9;padding:12px 16px;position:fixed;top:0;left:0;right:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;gap:12px;">
+    <div style="font-size:20px;">🚌</div>
+    <h1 style="margin:0;flex:1;font-size:18px;font-weight:700;">Driver Dashboard</h1>
+    <div style="background:#FACC15;color:#0F172A;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;">🚗 Driver Mode</div>
+    <button id="themeToggle" style="background:none;border:none;color:#F1F5F9;font-size:20px;cursor:pointer;">🌙</button>
+    <button id="logoutBtn" style="background:none;border:1px solid #475569;color:#F1F5F9;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;">Logout</button>
   </header>
-  <main class="app-main">
-    <div id="map">Map loading...</div>
-    <div class="bottom-bar">
-      <div class="controls">
-        <button id="startBtn" class="btn">Start Sharing</button>
-        <button id="stopBtn" class="btn ghost" disabled>Stop</button>
-      </div>
-      <div class="status" id="status">Not sharing</div>
-    </div>
-  </main>
+
+  <!-- Controls Bar -->
+  <div id="controlsBar" style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;padding:12px 16px;position:fixed;top:56px;left:0;right:0;z-index:999;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <input id="busInput" placeholder="Bus ID (e.g. bus1)" style="flex:1;min-width:150px;padding:10px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:14px;" />
+    <button id="saveBusBtn" style="background:none;border:1px solid #E2E8F0;color:#0F172A;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">💾 Save</button>
+    <button id="startBtn" style="background:#FACC15;color:#0F172A;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px;min-width:140px;">▶ Start Sharing</button>
+    <button id="stopBtn" style="background:none;border:1px solid #E2E8F0;color:#0F172A;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;display:none;">⏹ Stop</button>
+  </div>
   
+  <main style="position:fixed;top:112px;left:0;right:0;bottom:0;z-index:1;">
+    <div id="map">Loading map...</div>
+  </main>
+
+  <!-- Status Panel at Bottom -->
+  <div id="statusPanel" style="position:fixed;bottom:0;left:0;right:0;background:#F8FAFC;border-top:1px solid #E2E8F0;z-index:998;padding:12px 16px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div>
+        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">📍 Status</div>
+        <div id="status" style="font-size:14px;font-weight:700;color:#0F172A;">Not sharing</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">📡 GPS Accuracy</div>
+        <div style="width:100%;height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden;">
+          <div id="accuracyBar" style="height:100%;background:#2563EB;width:0%;transition:width 0.3s ease;"></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">📤 Updates Sent</div>
+        <div id="updateCount" style="font-size:14px;font-weight:700;color:#0F172A;">0</div>
+      </div>
+    </div>
+  </div>
 
   <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -35,12 +99,42 @@
   <script src="firebase-config.js"></script>
 
   <script>
-    // minimal driver: save bus id and share location
+    // Theme toggle
+    function initTheme() {
+      const isDark = localStorage.getItem('busTracker.darkMode') === 'true';
+      if (isDark) document.body.classList.add('dark-mode');
+      updateThemeToggle();
+    }
+    function updateThemeToggle() {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+    }
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('busTracker.darkMode', isDark);
+      updateThemeToggle();
+    });
+    initTheme();
+
+    // HTTPS Warning
+    const isSecureOrigin = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!isSecureOrigin) {
+      document.getElementById('httpsWarning').style.display = 'block';
+    }
+
+    // Driver: save bus id and share location
     const savedBus = localStorage.getItem('busTracker.busId') || '';
     const name = localStorage.getItem('busTracker.name') || 'driver';
     const busInput = document.getElementById('busInput');
     const saveBusBtn = document.getElementById('saveBusBtn');
     const statusEl = document.getElementById('status');
+    const updateCountEl = document.getElementById('updateCount');
+    const accuracyBarEl = document.getElementById('accuracyBar');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    let updateCount = 0;
+
     if (savedBus) busInput.value = savedBus;
     saveBusBtn.addEventListener('click', () => {
       const v = busInput.value.trim();
@@ -49,10 +143,10 @@
       statusEl.textContent = 'Saved: ' + v;
     });
 
-    // Leaflet map (no Mapbox/WebGL)
+    // Leaflet map
     let map = null;
     try {
-      const defaultCenter = [10.9974, 76.9589]; // [lat, lng]
+      const defaultCenter = [10.9974, 76.9589];
       map = L.map('map').setView(defaultCenter, 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     } catch (err) {
@@ -61,24 +155,17 @@
     }
     let marker = null;
 
-    // Initialize Firebase using shared config (or warn if not set)
+    // Initialize Firebase
     if (!window.FIREBASE_CONFIG || window.FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) {
-      console.warn('firebase-config.js not configured. Please set real Firebase config in firebase-config.js');
+      console.warn('firebase-config.js not configured. Please set real Firebase config.');
     }
     if (!firebase.apps || !firebase.apps.length) {
       firebase.initializeApp(window.FIREBASE_CONFIG);
     }
     const database = firebase.database();
 
-    // check secure origin: geolocation requires https or localhost
-    const isSecureOrigin = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (!isSecureOrigin) {
-      const notice = document.getElementById('insecureNotice');
-      if (notice) notice.style.display = 'block';
-      document.getElementById('startBtn').disabled = true;
-    }
-
     let watchId = null;
+    let isSharing = false;
     function setStatus(text) { statusEl.textContent = text; }
 
     document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -88,40 +175,178 @@
       location.href = 'login.html';
     });
 
-    document.getElementById('startBtn').addEventListener('click', () => {
+    startBtn.addEventListener('click', () => {
       if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
-      if (!isSecureOrigin) { alert('Geolocation requires a secure origin (HTTPS or localhost). See the banner for options.'); return; }
+      if (!isSecureOrigin) { alert('Geolocation requires a secure origin. See the banner for options.'); return; }
       if (watchId !== null) return;
+
+      updateCount = 0;
+      const busId = localStorage.getItem('busTracker.busId');
+      if (!busId) { setStatus('No bus id saved — save before starting'); return; }
 
       watchId = navigator.geolocation.watchPosition(pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        const payload = { lat, lng, timestamp: Date.now(), driver: name };
+        const accuracy = pos.coords.accuracy;
+        const payload = { lat, lng, timestamp: Date.now(), driver: name, accuracy };
 
-        const busId = localStorage.getItem('busTracker.busId');
-        if (!busId) { setStatus('No bus id saved — save before starting'); return; }
+        // Update accuracy bar (0-50m = good, 50-100m = ok, 100+m = poor)
+        const accuracyPercent = Math.min(100, 100 - (accuracy / 150) * 100);
+        accuracyBarEl.style.width = Math.max(20, accuracyPercent) + '%';
+        if (accuracyPercent > 70) accuracyBarEl.style.background = '#10B981';
+        else if (accuracyPercent > 40) accuracyBarEl.style.background = '#F59E0B';
+        else accuracyBarEl.style.background = '#EF4444';
 
+        // Save location
         database.ref(`buses/${busId}/location`).set(payload)
           .then(() => {
-            // update map marker
+            updateCount++;
+            updateCountEl.textContent = updateCount;
+
             if (map) {
               if (!marker) marker = L.marker([lat, lng]).addTo(map);
               else marker.setLatLng([lat, lng]);
               map.setView([lat, lng], 15);
             }
-            setStatus('Sharing — ' + new Date(payload.timestamp).toLocaleTimeString());
-            document.getElementById('stopBtn').disabled = false;
+            setStatus('Sharing ✓ ' + new Date(payload.timestamp).toLocaleTimeString());
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'block';
+            isSharing = true;
+
+            // Add to trail
+            database.ref(`buses/${busId}/trail`).transaction(currentTrail => {
+              if (!currentTrail) currentTrail = [];
+              else if (Array.isArray(currentTrail)) currentTrail = currentTrail;
+              else currentTrail = [];
+
+              currentTrail.push({ lat, lng, timestamp: Date.now() });
+              if (currentTrail.length > 20) currentTrail.shift();
+              return currentTrail;
+            });
+          })
+          .catch(err => { 
+            console.error('Write failed', err);
+            setStatus('Write error');
+          });
+
+      }, err => { 
+        console.error('Geolocation error:', err);
+        let errorMsg = 'Location error';
+        if (err.code === 1) errorMsg = 'Permission denied. Grant location access in settings.';
+        else if (err.code === 2) errorMsg = 'Position unavailable. Check GPS.';
+        else if (err.code === 3) errorMsg = 'Timeout. Device took too long.';
+        else errorMsg = 'Error: ' + (err.message || 'Unknown');
+        setStatus(errorMsg);
+      }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+    });
+
+    stopBtn.addEventListener('click', () => {
+      if (watchId !== null) { 
+        navigator.geolocation.clearWatch(watchId); 
+        watchId = null; 
+        isSharing = false;
+        setStatus('Stopped'); 
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
+        updateCount = 0;
+        updateCountEl.textContent = '0';
+        accuracyBarEl.style.width = '0%';
+      }
+    });
+
+    // Auto-stop sharing when tab is hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && isSharing && watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        isSharing = false;
+        const busId = localStorage.getItem('busTracker.busId');
+        if (busId) {
+          database.ref(`buses/${busId}/status`).set('offline');
+        }
+        setStatus('Auto-stopped: tab hidden');
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
+      }
+    });
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+      if (isSharing && watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        const busId = localStorage.getItem('busTracker.busId');
+        if (busId) {
+          database.ref(`buses/${busId}/status`).set('offline');
+        }
+      }
+    });
+
+    // Service worker registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
+    }
+  </script>
+</body>
+</html>
+
+              currentTrail.push({ lat, lng, timestamp: Date.now() });
+              if (currentTrail.length > 20) currentTrail.shift();
+              return currentTrail;
+            });
           })
           .catch(err => { console.error('Write failed', err); setStatus('Write error'); });
 
-      }, err => { console.error(err); setStatus('Location error'); }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+      }, err => { 
+        console.error('Geolocation error:', err);
+        let errorMsg = 'Location error';
+        if (err.code === 1) errorMsg = 'Permission denied. Grant location access in browser settings.';
+        else if (err.code === 2) errorMsg = 'Position unavailable. Check GPS or try different location.';
+        else if (err.code === 3) errorMsg = 'Timeout. Device took too long to find location.';
+        else errorMsg = 'Error: ' + (err.message || 'Unknown');
+        setStatus(errorMsg);
+      }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
     });
 
     document.getElementById('stopBtn').addEventListener('click', () => {
-      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; setStatus('Stopped'); document.getElementById('stopBtn').disabled = true; }
+      if (watchId !== null) { 
+        navigator.geolocation.clearWatch(watchId); 
+        watchId = null; 
+        isSharing = false;
+        setStatus('Stopped'); 
+        document.getElementById('stopBtn').disabled = true; 
+      }
     });
 
-    // no debug UI in minimal mode
+    // Auto-stop sharing when tab is hidden or closed
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && isSharing && watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        isSharing = false;
+        const busId = localStorage.getItem('busTracker.busId');
+        if (busId) {
+          database.ref(`buses/${busId}/status`).set('offline');
+        }
+        setStatus('Auto-stopped: tab hidden');
+        document.getElementById('stopBtn').disabled = true;
+      }
+    });
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+      if (isSharing && watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        const busId = localStorage.getItem('busTracker.busId');
+        if (busId) {
+          database.ref(`buses/${busId}/status`).set('offline');
+        }
+      }
+    });
+
+    // Service worker registration for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
+    }
   </script>
 </body>
 </html>

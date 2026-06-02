@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#1a2b4a">
+  <link rel="manifest" href="manifest.json">
+  <title>Admin — Bus Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    main.app-main {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 0;
+      padding-top: 68px;
+      padding-bottom: 0;
+    }
+    #map {
+      height: calc(100vh - 68px);
+      border-radius: 0;
+      border: none;
+    }
+    .bus-list {
+      overflow-y: auto;
+      max-height: calc(100vh - 68px);
+      border-left: 1px solid var(--border);
+    }
+    body.dark-mode .bus-list {
+      border-left-color: rgba(255, 255, 255, 0.1);
+    }
+    @media (max-width: 768px) {
+      main.app-main {
+        grid-template-columns: 1fr;
+      }
+      .bus-list {
+        max-height: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="title">🚌 All Buses</div>
+    <button id="themeToggle" class="theme-toggle" title="Toggle dark mode">🌙</button>
+    <button id="logoutBtn" class="btn ghost" style="margin-left:auto;">Logout</button>
+  </header>
+
+  <main class="app-main">
+    <div id="map">Loading map...</div>
+    <div class="bus-list">
+      <div id="busList" style="padding:12px;"></div>
+    </div>
+  </main>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script>
+    // ===== Theme Toggle =====
+    function initTheme() {
+      const isDark = localStorage.getItem('busTracker.darkMode') === 'true';
+      if (isDark) document.body.classList.add('dark-mode');
+      updateThemeToggle();
+    }
+    function updateThemeToggle() {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+    }
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('busTracker.darkMode', isDark);
+      updateThemeToggle();
+    });
+    initTheme();
+
+    // Verify admin role
+    const role = localStorage.getItem('busTracker.role');
+    if (role !== 'admin') {
+      alert('Access denied. Admin only.');
+      location.href = 'login.html';
+    }
+
+    // ===== Map Setup =====
+    let map = null;
+    try {
+      const defaultCenter = [10.9974, 76.9589]; // [lat, lng]
+      map = L.map('map').setView(defaultCenter, 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    } catch (err) {
+      console.error('Leaflet init failed', err);
+      document.getElementById('map').textContent = 'Map init error: ' + (err && err.message || err);
+    }
+
+    // ===== Firebase Setup =====
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(window.FIREBASE_CONFIG);
+    }
+    const database = firebase.database();
+
+    // ===== State =====
+    const busMarkers = {}; // busId -> marker
+    const busList = document.getElementById('busList');
+    const INACTIVE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+
+    // ===== Create Bus Marker =====
+    function createBusMarker(latLng, busId, color = '#f97316') {
+      const iconHtml = `<div style="font-size:24px;">🚌</div>`;
+      return L.marker(latLng, {
+        icon: L.divIcon({
+          html: iconHtml,
+          className: 'bus-marker-wrapper',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        })
+      }).bindPopup(`Bus ID: ${busId}`);
+    }
+
+    // ===== Update Bus List =====
+    function updateBusList(buses) {
+      busList.innerHTML = '';
+      const now = Date.now();
+
+      Object.entries(buses).forEach(([busId, busData]) => {
+        const isInactive = !busData.timestamp || (now - busData.timestamp) > INACTIVE_THRESHOLD;
+        
+        const item = document.createElement('div');
+        item.className = `bus-item ${isInactive ? 'inactive' : ''}`;
+        
+        const statusDot = document.createElement('div');
+        statusDot.className = `bus-status ${isInactive ? 'offline' : ''}`;
+        
+        const label = document.createElement('div');
+        label.className = 'bus-label';
+        label.innerHTML = `<strong>${busId}</strong>`;
+        
+        const time = document.createElement('div');
+        time.className = 'bus-time';
+        if (busData.timestamp) {
+          const secondsAgo = Math.floor((now - busData.timestamp) / 1000);
+          if (secondsAgo < 60) time.textContent = `${secondsAgo}s ago`;
+          else if (secondsAgo < 3600) time.textContent = `${Math.floor(secondsAgo/60)}m ago`;
+          else time.textContent = `${Math.floor(secondsAgo/3600)}h ago`;
+        } else {
+          time.textContent = 'Never';
+        }
+        
+        item.appendChild(statusDot);
+        item.appendChild(label);
+        item.appendChild(time);
+        
+        item.addEventListener('click', () => {
+          if (busData.lat && busData.lng) {
+            map.setView([busData.lat, busData.lng], 15);
+          }
+        });
+        
+        busList.appendChild(item);
+      });
+    }
+
+    // ===== Monitor All Buses =====
+    function monitorAllBuses() {
+      database.ref('buses').on('value', snap => {
+        const buses = snap.val() || {};
+        const now = Date.now();
+
+        Object.entries(buses).forEach(([busId, busData]) => {
+          if (!busData.location) return;
+
+          const { lat, lng, timestamp } = busData.location;
+          if (!lat || !lng) return;
+
+          const isInactive = !timestamp || (now - timestamp) > INACTIVE_THRESHOLD;
+
+          // Update or create marker
+          if (busMarkers[busId]) {
+            busMarkers[busId].setLatLng([lat, lng]);
+          } else {
+            busMarkers[busId] = createBusMarker([lat, lng], busId);
+            busMarkers[busId].addTo(map);
+          }
+        });
+
+        updateBusList(buses);
+      });
+
+      // Refresh list every 30 seconds to update times
+      setInterval(() => {
+        database.ref('buses').once('value', snap => {
+          const buses = snap.val() || {};
+          updateBusList(buses);
+        });
+      }, 30000);
+    }
+
+    // ===== Event Listeners =====
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('busTracker.role');
+      localStorage.removeItem('busTracker.busId');
+      localStorage.removeItem('busTracker.name');
+      location.href = 'login.html';
+    });
+
+    // Service worker registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
+    }
+
+    // Start monitoring
+    monitorAllBuses();
+  </script>
+</body>
+</html>

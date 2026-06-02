@@ -3,32 +3,142 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#2563EB">
+  <link rel="manifest" href="manifest.json">
   <title>Student — Bus Tracker</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="styles.css" />
+  <style>
+    :root {
+      --primary: #2563EB;
+      --accent: #FACC15;
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --text: #0F172A;
+      --muted: #64748B;
+      --border: #E2E8F0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    body.dark-mode {
+      --bg: #0F172A;
+      --card: #1E293B;
+      --text: #F1F5F9;
+      --border: #334155;
+    }
+
+    /* Bus Marker Animation */
+    .bus-marker {
+      font-size: 28px;
+      animation: bounce 0.6s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .bus-marker-wrapper {
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    /* Pulse Animation */
+    @keyframes pulse-ring {
+      0% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 20px rgba(37, 99, 235, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+      }
+    }
+
+    .pulse-circle {
+      animation: pulse-ring 2s infinite;
+    }
+
+    .bus-trail {
+      pointer-events: none;
+    }
+
+    #map {
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+    }
+  </style>
 </head>
 <body>
-  <header class="app-header">
-    <div class="title">Student View</div>
-    <div id="busLabel" class="muted small" style="margin-left:8px"></div>
-    <div class="hdr-controls">
-      <input id="busSelect" placeholder="Bus ID (e.g. bus1)" />
-      <button id="watchBtn" class="btn">Watch</button>
-      <button id="stopBtn" class="btn ghost" disabled>Stop</button>
-      <button id="logoutBtn" class="btn ghost" style="margin-left:8px">Logout</button>
-    </div>
+  <!-- HTTPS Warning Banner -->
+  <div id="httpsWarning" class="https-warning" style="display:none;background:#FEF3C7;border-bottom:2px solid #F59E0B;padding:12px 16px;color:#92400E;">
+    ⚠️ Geolocation requires HTTPS or localhost for full functionality
+  </div>
+
+  <header style="background:#1E293B;color:#F1F5F9;padding:12px 16px;position:fixed;top:0;left:0;right:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;gap:12px;">
+    <div style="font-size:20px;">🚌</div>
+    <h1 style="margin:0;flex:1;font-size:18px;font-weight:700;">Bus Tracker</h1>
+    <button id="themeToggle" style="background:none;border:none;color:#F1F5F9;font-size:20px;cursor:pointer;">🌙</button>
+    <button id="logoutBtn" style="background:none;border:1px solid #475569;color:#F1F5F9;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;">Logout</button>
   </header>
+
+  <!-- Controls Bar -->
+  <div id="controlsBar" style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;padding:12px 16px;position:fixed;top:56px;left:0;right:0;z-index:999;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <input id="busSelect" placeholder="Bus ID (e.g. bus1)" style="flex:1;min-width:150px;padding:10px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:14px;" />
+    <button id="watchBtn" style="background:#2563EB;color:white;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">▶ Watch</button>
+    <button id="stopBtn" style="background:none;border:1px solid #E2E8F0;color:#0F172A;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;display:none;">Stop</button>
+    <button id="notifyBtn" style="background:none;border:1px solid #E2E8F0;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:16px;display:none;">🔔</button>
+  </div>
   
-  <div id="debug" style="display:none">Debug</div>
-  <div id="insecureNotice" style="display:none">This page is not secure (not HTTPS). For live geolocation use, open via <code>localhost</code>, deploy to HTTPS, or use a secure tunnel like <code>ngrok</code>.</div>
-  <main class="app-main">
-    <div id="map">Loading map...</div>
-    <div class="info-row">
-      <div class="info" id="info">No data yet</div>
-      <div class="small">Remaining: <span id="remaining">n/a</span></div>
-      <div class="small">ETA: <span id="eta">n/a</span></div>
-    </div>
+  <main style="position:fixed;top:112px;left:0;right:0;bottom:160px;z-index:1;">
+    <div id="map" style="width:100%;height:100%;background:#F8FAFC;">Loading map...</div>
   </main>
+
+  <!-- Info Panel at Bottom -->
+  <div style="position:fixed;bottom:0;left:0;right:0;background:#F8FAFC;border-top:1px solid #E2E8F0;z-index:998;max-height:160px;overflow-y:auto;">
+    <div id="errorNotice" style="background:#FEE2E2;color:#7F1D1D;padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;">
+      <span id="errorText"></span>
+      <button id="retryBtn" style="background:#DC2626;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;">Retry</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:12px 16px;">
+      <div style="border-right:1px solid #E2E8F0;padding-right:12px;">
+        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">📍 Last Updated</div>
+        <div id="lastUpdated" style="font-size:14px;font-weight:700;color:#0F172A;">—</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">📌 Distance</div>
+        <div id="distance" style="font-size:14px;font-weight:700;color:#0F172A;">—</div>
+      </div>
+      <div style="border-right:1px solid #E2E8F0;padding-right:12px;">
+        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">🚗 Speed</div>
+        <div id="speed" style="font-size:14px;font-weight:700;color:#0F172A;">—</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">🔍 GPS</div>
+        <div id="coordinates" style="font-size:12px;font-family:monospace;color:#0F172A;font-weight:600;">—</div>
+      </div>
+    </div>
+  </div>
 
   <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -37,6 +147,31 @@
   <script src="firebase-config.js"></script>
 
   <script>
+    // ===== Theme Toggle =====
+    function initTheme() {
+      const isDark = localStorage.getItem('busTracker.darkMode') === 'true';
+      if (isDark) document.body.classList.add('dark-mode');
+      updateThemeToggle();
+    }
+    function updateThemeToggle() {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+    }
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('busTracker.darkMode', isDark);
+      updateThemeToggle();
+    });
+    initTheme();
+
+    // ===== HTTPS Warning =====
+    const isSecureOrigin = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!isSecureOrigin) {
+      document.getElementById('httpsWarning').style.display = 'flex';
+    }
+
+    // ===== Map Setup =====
     let map = null;
     try {
       const defaultCenter = [10.9974, 76.9589]; // [lat, lng]
@@ -46,103 +181,288 @@
       console.error('Leaflet init failed', err);
       document.getElementById('map').textContent = 'Map init error: ' + (err && err.message || err);
     }
-    let marker = null;
-    let currentRef = null;
-    let routeLine = null;
-    let studentLocation = null;
 
+    // ===== Firebase Setup =====
     if (!window.FIREBASE_CONFIG || window.FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) {
-      console.warn('firebase-config.js not configured. Please set real Firebase config in firebase-config.js');
+      console.warn('firebase-config.js not configured.');
     }
-
-    // secure origin check
-    const isSecureOrigin = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (!isSecureOrigin) {
-      const n = document.getElementById('insecureNotice');
-      if (n) n.style.display = 'block';
-      document.getElementById('watchBtn').disabled = true;
-    }
-
     if (!firebase.apps || !firebase.apps.length) {
       firebase.initializeApp(window.FIREBASE_CONFIG);
     }
     const database = firebase.database();
 
+    // ===== State Variables =====
+    let marker = null;
+    let pulseCircle = null;
+    let currentRef = null;
+    let trailLine = null;
+    let studentLocation = null;
+    let currentBusLocation = null;
+    let previousBusLocation = null;
+    let lastUpdateTime = null;
+    let watchTimeoutId = null;
+    let notificationEnabled = false;
+    let notificationLocation = null;
+
     const busInput = document.getElementById('busSelect');
     const watchBtn = document.getElementById('watchBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const info = document.getElementById('info');
+    const notifyBtn = document.getElementById('notifyBtn');
+    const errorNotice = document.getElementById('errorNotice');
+    const errorText = document.getElementById('errorText');
+    const retryBtn = document.getElementById('retryBtn');
 
-    // prefill from login session if exists
+    // Prefill from login session
     const savedBus = localStorage.getItem('busTracker.busId');
-    if (savedBus) { busInput.value = savedBus; document.getElementById('busLabel').textContent = savedBus; }
+    if (savedBus) { 
+      busInput.value = savedBus;
+    }
 
+    // ===== Haversine Formula (Calculate distance & speed) =====
+    function haversineDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c; // Distance in km
+    }
+
+    // ===== Custom Bus Marker =====
+    function createBusMarker(latLng) {
+      const iconHtml = `
+        <div class="bus-marker">🚌</div>
+      `;
+      return L.marker(latLng, {
+        icon: L.divIcon({
+          html: iconHtml,
+          className: 'bus-marker-wrapper',
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
+          popupAnchor: [0, -20]
+        })
+      });
+    }
+
+    // ===== Pulsing Circle Animation =====
+    function addPulsingCircle(latLng) {
+      if (pulseCircle) map.removeLayer(pulseCircle);
+      pulseCircle = L.circle(latLng, {
+        radius: 100,
+        color: '#2563EB',
+        weight: 2,
+        opacity: 0.3,
+        fill: false,
+        className: 'pulse-circle'
+      }).addTo(map);
+    }
+
+    // ===== Update Info Panel =====
+    function updateInfoPanel(busData) {
+      const now = Date.now();
+      lastUpdateTime = busData.timestamp || now;
+      const secondsAgo = Math.floor((now - lastUpdateTime) / 1000);
+      let timeText = '';
+      if (secondsAgo < 60) timeText = `Updated ${secondsAgo}s ago`;
+      else if (secondsAgo < 3600) timeText = `Updated ${Math.floor(secondsAgo/60)}m ago`;
+      else timeText = `Updated ${Math.floor(secondsAgo/3600)}h ago`;
+      document.getElementById('lastUpdated').textContent = timeText;
+
+      // Coordinates
+      document.getElementById('coordinates').textContent = 
+        `${busData.lat.toFixed(4)}°, ${busData.lng.toFixed(4)}°`;
+
+      // Distance
+      if (studentLocation) {
+        const dist = haversineDistance(studentLocation[0], studentLocation[1], busData.lat, busData.lng);
+        document.getElementById('distance').textContent = dist.toFixed(2) + ' km';
+      }
+
+      // Speed calculation
+      if (previousBusLocation && currentBusLocation) {
+        const distKm = haversineDistance(previousBusLocation[0], previousBusLocation[1], currentBusLocation[0], currentBusLocation[1]);
+        const timeSeconds = (busData.timestamp - (lastUpdateTime - 10000)) / 1000;
+        if (timeSeconds > 0) {
+          const speedKmh = (distKm / timeSeconds) * 3600;
+          document.getElementById('speed').textContent = speedKmh.toFixed(1) + ' km/h';
+        }
+      }
+    }
+
+    // ===== Display Error Notice =====
+    function showError(message) {
+      errorNotice.style.display = 'flex';
+      errorText.textContent = message;
+    }
+
+    function hideError() {
+      errorNotice.style.display = 'none';
+    }
+
+    // ===== Draw Trail (Breadcrumb) =====
+    function drawTrail(trail) {
+      if (!trail || !Array.isArray(trail) || trail.length < 2) return;
+      const coords = trail.map(point => {
+        if (typeof point === 'object' && point.lat && point.lng) {
+          return [point.lat, point.lng];
+        } else if (Array.isArray(point) && point.length === 2) {
+          return point;
+        }
+        return null;
+      }).filter(c => c);
+
+      if (coords.length < 2) return;
+      
+      if (trailLine) map.removeLayer(trailLine);
+      trailLine = L.polyline(coords, { 
+        color: '#f97316', 
+        weight: 3, 
+        opacity: 0.6,
+        className: 'bus-trail'
+      }).addTo(map);
+    }
+
+    // ===== Start Watching Bus =====
     function startWatching() {
       const busId = busInput.value.trim();
       if (!busId) { alert('Enter bus id'); return; }
 
-      // Prompt for student location if not set
-      if (!studentLocation) {
-        navigator.geolocation.getCurrentPosition(function(pos) {
-          studentLocation = [pos.coords.lat, pos.coords.lng];
-        }, function() {
-          // fallback: use default center
-          studentLocation = [10.9974, 76.9589];
-        });
+      hideError();
+      watchBtn.style.display = 'none';
+      stopBtn.style.display = 'block';
+      notifyBtn.style.display = 'block';
+
+      // Get student location
+      if (!studentLocation && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => { studentLocation = [pos.coords.latitude, pos.coords.longitude]; },
+          () => { studentLocation = [10.9974, 76.9589]; }
+        );
       }
 
       if (currentRef) currentRef.off();
       currentRef = database.ref(`buses/${busId}/location`);
 
-      currentRef.on('value', snap => {
-        const d = snap.val();
-        if (d && d.lat && d.lng) {
-          const driverLatLng = [d.lat, d.lng];
-          if (map) {
-            if (!marker) { marker = L.marker(driverLatLng).addTo(map); }
-            else { marker.setLatLng(driverLatLng); }
-            map.setView(driverLatLng, 15);
-          }
-          info.textContent = `Last update: ${new Date(d.timestamp || Date.now()).toLocaleTimeString()} — driver: ${d.driver || 'unknown'}`;
-          stopBtn.disabled = false;
+      // Set 10-second timeout
+      if (watchTimeoutId) clearTimeout(watchTimeoutId);
+      watchTimeoutId = setTimeout(() => {
+        showError('Bus not started yet or no signal. Try again soon.');
+      }, 10000);
 
-          // Draw route from driver to student
-          if (studentLocation) {
-            fetchRoute(driverLatLng, studentLocation);
+      currentRef.on('value', snap => {
+        clearTimeout(watchTimeoutId);
+        const d = snap.val();
+        
+        if (d && d.lat && d.lng) {
+          hideError();
+          const busLatLng = [d.lat, d.lng];
+          currentBusLocation = busLatLng;
+
+          if (map && marker) {
+            marker.setLatLng(busLatLng);
+            addPulsingCircle(busLatLng);
+          } else if (map) {
+            marker = createBusMarker(busLatLng);
+            marker.addTo(map);
+            addPulsingCircle(busLatLng);
           }
+
+          map.setView(busLatLng, 15);
+          updateInfoPanel(d);
+
+          // Draw trail if available
+          database.ref(`buses/${busId}/trail`).once('value', trailSnap => {
+            const trail = trailSnap.val();
+            if (trail) drawTrail(Array.isArray(trail) ? trail : Object.values(trail));
+          });
+
+          // Check for push notification
+          if (notificationEnabled && notificationLocation) {
+            const dist = haversineDistance(busLatLng[0], busLatLng[1], notificationLocation[0], notificationLocation[1]);
+            if (dist < 0.5) { // 500 meters
+              showNotification('Your bus is arriving soon!');
+              notificationEnabled = false;
+              notifyBtn.textContent = '🔔';
+            }
+          }
+
+          previousBusLocation = currentBusLocation;
         } else {
-          info.textContent = 'No valid location found for ' + busId;
+          showError('Bus not started yet or no signal. Try again soon.');
         }
+      }, err => {
+        showError('Firebase error: ' + err.message);
       });
     }
 
-    function fetchRoute(driverLatLng, studentLatLng) {
-      // OSRM API expects [lng,lat]
-      const url = `https://router.project-osrm.org/route/v1/driving/${driverLatLng[1]},${driverLatLng[0]};${studentLatLng[1]},${studentLatLng[0]}?overview=full&geometries=geojson`;
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          if (data.routes && data.routes.length) {
-            const route = data.routes[0];
-            const coords = route.geometry.coordinates.map(c => [c[1], c[0]]); // [lat,lng]
-            if (routeLine) { map.removeLayer(routeLine); }
-            routeLine = L.polyline(coords, { color: '#2b6cdf', weight: 5, opacity: 0.8 }).addTo(map);
-            document.getElementById('remaining').textContent = (route.distance/1000).toFixed(2) + ' km';
-            document.getElementById('eta').textContent = Math.ceil(route.duration/60) + ' min';
-          }
-        })
-        .catch(() => {
-          document.getElementById('remaining').textContent = 'n/a';
-          document.getElementById('eta').textContent = 'n/a';
-        });
-    }
-
+    // ===== Stop Watching =====
     function stopWatching() {
-      if (currentRef) { currentRef.off(); currentRef = null; info.textContent = 'Stopped'; stopBtn.disabled = true; }
+      if (currentRef) { 
+        currentRef.off(); 
+        currentRef = null; 
+        stopBtn.style.display = 'none';
+        watchBtn.style.display = 'block';
+        notifyBtn.style.display = 'none';
+        if (watchTimeoutId) clearTimeout(watchTimeoutId);
+      }
     }
 
+    // ===== Push Notifications =====
+    function showNotification(title) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Bus Tracker', { 
+          body: title,
+          icon: '🚌',
+          badge: '🚌'
+        });
+      }
+    }
+
+    notifyBtn.addEventListener('click', async () => {
+      if (!notificationEnabled) {
+        // Request permission
+        if ('Notification' in window) {
+          if (Notification.permission === 'granted') {
+            enableNotification();
+          } else if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') enableNotification();
+          }
+        }
+      } else {
+        notificationEnabled = false;
+        notifyBtn.textContent = '🔔';
+      }
+    });
+
+    function enableNotification() {
+      // Prompt user to click on map for their location
+      alert('Click on the map to mark your stop location for notifications.');
+      map.once('click', (e) => {
+        notificationLocation = [e.latlng.lat, e.latlng.lng];
+        notificationEnabled = true;
+        notifyBtn.textContent = '🔔✓';
+        L.marker(notificationLocation, {
+          icon: L.divIcon({
+            html: '<div style="font-size:24px;">📍</div>',
+            className: 'stop-marker',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          })
+        }).addTo(map);
+      });
+    }
+
+    // ===== Event Listeners =====
     watchBtn.addEventListener('click', startWatching);
     stopBtn.addEventListener('click', stopWatching);
+    retryBtn.addEventListener('click', () => {
+      hideError();
+      startWatching();
+    });
+
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('busTracker.role');
       localStorage.removeItem('busTracker.busId');
@@ -150,29 +470,10 @@
       location.href = 'login.html';
     });
 
-    // Debug panel updates
-    function updateDebug() {
-      try {
-        const dbg = document.getElementById('debug');
-        if (!dbg) return;
-        const rows = [];
-        rows.push('L defined: ' + (typeof L !== 'undefined'));
-        rows.push('map object: ' + (!!map));
-        rows.push('marker present: ' + (!!marker));
-        rows.push('FIREBASE_CONFIG: ' + (window.FIREBASE_CONFIG ? 'loaded' : 'missing'));
-        rows.push('databaseURL: ' + (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.databaseURL ? window.FIREBASE_CONFIG.databaseURL : 'n/a'));
-        rows.push('protocol: ' + location.protocol + ' (needs https for geolocation on some browsers)');
-        dbg.innerText = rows.join('\n');
-        console.log('DEBUG:', rows.join(' | '));
-      } catch (e) { console.error(e); }
+    // Service worker registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
     }
-    updateDebug();
-    setInterval(updateDebug, 3000);
-    window.addEventListener('error', (ev) => {
-      const dbg = document.getElementById('debug');
-      if (dbg) dbg.innerText += '\nERROR: ' + (ev && ev.message || ev);
-      console.error('Window error', ev);
-    });
   </script>
 </body>
 </html>

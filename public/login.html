@@ -3,47 +3,433 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#2563EB">
+  <link rel="manifest" href="manifest.json">
   <title>Login — Bus Tracker</title>
-  <link rel="stylesheet" href="styles.css" />
+  <style>
+    :root {
+      --primary: #2563EB;
+      --accent: #FACC15;
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --text: #0F172A;
+      --muted: #64748B;
+      --border: #E2E8F0;
+    }
+
+    body.dark-mode {
+      --bg: #0F172A;
+      --card: #1E293B;
+      --text: #F1F5F9;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    /* Floating bus decorations */
+    .floating-bus {
+      position: absolute;
+      font-size: 3rem;
+      opacity: 0.08;
+      pointer-events: none;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .floating-bus:nth-child(1) { top: 10%; left: 5%; animation-delay: 0s; }
+    .floating-bus:nth-child(2) { top: 60%; right: 10%; animation-delay: 1s; font-size: 2.5rem; }
+    .floating-bus:nth-child(3) { top: 40%; left: 15%; animation-delay: 2s; font-size: 2rem; }
+    .floating-bus:nth-child(4) { bottom: 15%; right: 8%; animation-delay: 3s; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(5deg); }
+    }
+
+    .login-container {
+      position: relative;
+      z-index: 10;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border);
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .bus-icon {
+      font-size: 48px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0 0 32px;
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      color: var(--primary);
+    }
+
+    label {
+      display: block;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      background: var(--card);
+      color: var(--text);
+      transition: all 0.2s ease;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      background: var(--bg);
+    }
+
+    /* Role chip buttons */
+    .role-chips {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+      margin-bottom: 24px;
+    }
+
+    .chip {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+
+    .chip:hover {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    .chip.selected {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* PIN field */
+    .pin-field {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .pin-digit {
+      flex: 1;
+      height: 50px;
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--text);
+      transition: all 0.2s ease;
+    }
+
+    .pin-digit:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .pin-digit.filled {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px 20px;
+      margin-top: 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn:hover {
+      background: #1d4ed8;
+      box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .theme-toggle {
+      width: 100%;
+      padding: 10px;
+      margin-top: 12px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .theme-toggle:hover {
+      background: var(--bg);
+      border-color: var(--primary);
+    }
+  </style>
 </head>
-  <body>
+<body>
+  <!-- Floating bus decorations -->
+  <div class="floating-bus">🚌</div>
+  <div class="floating-bus">🚌</div>
+  <div class="floating-bus">🚌</div>
+  <div class="floating-bus">🚌</div>
+
   <div class="login-page">
-  <div class="card">
-    <h2>Login</h2>
+    <div class="login-container">
+      <div class="card">
+        <div class="bus-icon">🚌</div>
+        <h1>Bus Tracker</h1>
 
-    <label for="role">Role</label>
-    <select id="role">
-      <option value="student">Student</option>
-      <option value="driver">Driver</option>
-    </select>
+        <label>Select Your Role</label>
+        <div class="role-chips">
+          <button class="chip selected" data-role="student">👨‍🎓 Student</button>
+          <button class="chip" data-role="driver">🚗 Driver</button>
+          <button class="chip" data-role="admin">👨‍💼 Admin</button>
+        </div>
+        <input type="hidden" id="role" value="student" />
 
-    <label for="busId">Bus ID</label>
-    <input id="busId" placeholder="e.g. bus1 or bus2" />
+        <label for="busId">Bus ID</label>
+        <input id="busId" placeholder="e.g. bus1 or bus2" />
 
-    <label for="name">Name (optional)</label>
-    <input id="name" placeholder="Your name" />
+        <div id="pinContainer" style="display:none;">
+          <label>Driver PIN (4 digits)</label>
+          <div class="pin-field" id="pinField"></div>
+          <input id="pinInput" type="hidden" />
+        </div>
 
-    <button id="loginBtn" class="btn">Continue</button>
+        <label for="name">Name (optional)</label>
+        <input id="name" placeholder="Your name" />
+
+        <button id="loginBtn" class="btn">Continue</button>
+        <button id="themeToggle" class="theme-toggle">🌙 Dark Mode</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    // ...existing code...
+    // Theme management
+    function initTheme() {
+      const isDark = localStorage.getItem('busTracker.darkMode') === 'true';
+      if (isDark) document.body.classList.add('dark-mode');
+      updateThemeToggle();
+    }
 
-    document.getElementById('loginBtn').addEventListener('click', () => {
-      const role = document.getElementById('role').value;
-      const busId = document.getElementById('busId').value.trim();
-      const name = document.getElementById('name').value.trim();
+    function updateThemeToggle() {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.getElementById('themeToggle').textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+    }
 
-      if (!busId) { alert('Please enter a bus id (e.g. bus1)'); return; }
-
-      // store session info locally
-      localStorage.setItem('busTracker.role', role);
-      localStorage.setItem('busTracker.busId', busId);
-      if (name) localStorage.setItem('busTracker.name', name);
-
-      if (role === 'driver') location.href = 'driver.html';
-      else location.href = 'student.html';
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('busTracker.darkMode', isDark);
+      updateThemeToggle();
     });
+
+    initTheme();
+
+    // Role selection with chips
+    const chips = document.querySelectorAll('.chip');
+    const roleInput = document.getElementById('role');
+    const pinContainer = document.getElementById('pinContainer');
+    const busIdInput = document.getElementById('busId');
+    const nameInput = document.getElementById('name');
+
+    // Pre-fill from sessionStorage if available
+    const savedRole = sessionStorage.getItem('busTracker.role') || 'student';
+    const savedBusId = sessionStorage.getItem('busTracker.busId') || '';
+    const savedName = sessionStorage.getItem('busTracker.name') || '';
+
+    roleInput.value = savedRole;
+    busIdInput.value = savedBusId;
+    nameInput.value = savedName;
+
+    // Update chip selection
+    chips.forEach(chip => {
+      if (chip.dataset.role === savedRole) chip.classList.add('selected');
+      chip.addEventListener('click', () => {
+        chips.forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+        roleInput.value = chip.dataset.role;
+        
+        // Show PIN field for driver role
+        if (chip.dataset.role === 'driver') {
+          pinContainer.style.display = 'block';
+          createPINField();
+        } else {
+          pinContainer.style.display = 'none';
+        }
+      });
+    });
+
+    // Initialize PIN field if driver was pre-selected
+    if (savedRole === 'driver') {
+      pinContainer.style.display = 'block';
+      createPINField();
+    }
+
+    // PIN field creation
+    function createPINField() {
+      const pinField = document.getElementById('pinField');
+      if (pinField.children.length > 0) return;
+      
+      for (let i = 0; i < 4; i++) {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'pin-digit';
+        input.maxLength = 1;
+        input.min = '0';
+        input.max = '9';
+        input.addEventListener('input', (e) => {
+          if (e.target.value.length === 1) {
+            e.target.classList.add('filled');
+            if (i < 3) pinField.children[i + 1].focus();
+            updatePINInput();
+          } else {
+            e.target.classList.remove('filled');
+            updatePINInput();
+          }
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Backspace' && !e.target.value && i > 0) {
+            pinField.children[i - 1].focus();
+          }
+        });
+        pinField.appendChild(input);
+      }
+    }
+
+    function updatePINInput() {
+      const digits = Array.from(document.querySelectorAll('.pin-digit')).map(d => d.value).join('');
+      document.getElementById('pinInput').value = digits;
+    }
+
+    // Form submission
+    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && e.target !== document.activeElement) handleLogin();
+    });
+
+    function handleLogin() {
+      const role = roleInput.value;
+      const busId = busIdInput.value.trim();
+      const name = nameInput.value.trim() || 'User';
+      const pin = document.getElementById('pinInput').value;
+
+      if (!busId) {
+        alert('Please enter a Bus ID');
+        return;
+      }
+
+      if (role === 'driver' && pin.length !== 4) {
+        alert('Please enter a 4-digit PIN');
+        return;
+      }
+
+      // Store in sessionStorage
+      sessionStorage.setItem('busTracker.role', role);
+      sessionStorage.setItem('busTracker.busId', busId);
+      sessionStorage.setItem('busTracker.name', name);
+
+      // Store in localStorage for persistence
+      localStorage.setItem('busTracker.busId', busId);
+      localStorage.setItem('busTracker.name', name);
+      localStorage.setItem('busTracker.role', role);
+      if (role === 'driver') {
+        localStorage.setItem('busTracker.driverPin', pin);
+      }
+
+      // Navigate
+      const page = role === 'admin' ? 'admin.html' : role === 'driver' ? 'driver.html' : 'student.html';
+      location.href = page;
+    }
+
+    // Service worker registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
+    }
   </script>
 </body>
 </html>
