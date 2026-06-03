@@ -1,12 +1,90 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Bus Tracker</title>
-    <meta http-equiv="refresh" content="0; url=login.html">
-  </head>
-  <body>
-    Redirecting to <a href="login.html">login</a>...
-  </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#2563EB">
+  <title>Bus Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="loader.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: linear-gradient(160deg, #EFF6FF 0%, #F8FAFC 50%, #BAE6FD 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .splash {
+      text-align: center;
+      padding: 24px;
+      animation: splash-in 0.8s ease-out;
+    }
+    @keyframes splash-in {
+      from { opacity: 0; transform: translateY(16px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .splash-icon {
+      font-size: 72px;
+      display: block;
+      margin-bottom: 16px;
+      animation: bus-bob 1.2s ease-in-out infinite;
+    }
+    @keyframes bus-bob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .splash h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #2563EB;
+      margin-bottom: 8px;
+    }
+    .splash p {
+      color: #64748B;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .splash-bar {
+      width: 200px;
+      height: 4px;
+      background: #E2E8F0;
+      border-radius: 999px;
+      margin: 24px auto 0;
+      overflow: hidden;
+    }
+    .splash-bar span {
+      display: block;
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, #2563EB, #0EA5E9);
+      border-radius: 999px;
+      animation: splash-progress 1.5s ease-in-out infinite;
+    }
+    @keyframes splash-progress {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="splash" role="status" aria-live="polite">
+    <span class="splash-icon" aria-hidden="true">🚌</span>
+    <h1>Bus Tracker</h1>
+    <p>Real-time campus bus tracking</p>
+    <div class="splash-bar"><span></span></div>
+  </div>
+  <script>window._btSkipAutoShow = true;</script>
+  <script>
+    setTimeout(function () {
+      window.location.href = 'login.html';
+    }, 2400);
+  </script>
+  <script src="loader.js"></script>
+</body>
 </html>

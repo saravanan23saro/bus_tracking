@@ -7,191 +7,109 @@
   <link rel="manifest" href="manifest.json">
   <title>Student — Bus Tracker</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    :root {
-      --primary: #2563EB;
-      --accent: #FACC15;
-      --bg: #F8FAFC;
-      --card: #FFFFFF;
-      --text: #0F172A;
-      --muted: #64748B;
-      --border: #E2E8F0;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      transition: background 0.3s ease, color 0.3s ease;
-    }
-
-    body.dark-mode {
-      --bg: #0F172A;
-      --card: #1E293B;
-      --text: #F1F5F9;
-      --border: #334155;
-    }
-
-    /* Bus Marker Animation */
-    .bus-marker {
-      font-size: 28px;
-      animation: bounce 0.6s ease-in-out infinite;
-    }
-
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-    }
-
-    .bus-marker-wrapper {
-      background: var(--primary);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-    }
-
-    /* Pulse Animation */
-    @keyframes pulse-ring {
-      0% {
-        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
-      }
-      70% {
-        box-shadow: 0 0 0 20px rgba(37, 99, 235, 0);
-      }
-      100% {
-        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
-      }
-    }
-
-    .pulse-circle {
-      animation: pulse-ring 2s infinite;
-    }
-
-    .bus-trail {
-      pointer-events: none;
-    }
-
-    #map {
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-    }
-  </style>
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="loader.css" />
 </head>
-<body>
-  <!-- HTTPS Warning Banner -->
-  <div id="httpsWarning" class="https-warning" style="display:none;background:#FEF3C7;border-bottom:2px solid #F59E0B;padding:12px 16px;color:#92400E;">
-    ⚠️ Geolocation requires HTTPS or localhost for full functionality
-  </div>
-
-  <header style="background:#1E293B;color:#F1F5F9;padding:12px 16px;position:fixed;top:0;left:0;right:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;gap:12px;">
-    <div style="font-size:20px;">🚌</div>
-    <h1 style="margin:0;flex:1;font-size:18px;font-weight:700;">Bus Tracker</h1>
-    <button id="themeToggle" style="background:none;border:none;color:#F1F5F9;font-size:20px;cursor:pointer;">🌙</button>
-    <button id="logoutBtn" style="background:none;border:1px solid #475569;color:#F1F5F9;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;">Logout</button>
+<body data-page="student">
+  <header class="dash-header">
+    <div class="dash-header__left">
+      <span class="dash-logo" aria-hidden="true">🚌</span>
+      <div class="dash-title-wrap">
+        <h1 class="dash-title">Student Dashboard</h1>
+        <p class="dash-subtitle">Track your bus</p>
+      </div>
+    </div>
+    <div class="dash-header__center">
+      <input type="search" class="dash-search" id="headerSearch" placeholder="Search bus ID…" aria-label="Search bus" />
+    </div>
+    <div class="dash-header__right">
+      <button type="button" class="dash-icon-btn" id="notifBell" title="Arrival alerts">🔔</button>
+      <button type="button" class="dash-icon-btn" id="themeToggle" aria-label="Toggle theme">🌙</button>
+      <div class="dash-user">
+        <span class="dash-user__avatar" id="userAvatar">S</span>
+        <div class="dash-user__meta">
+          <span class="dash-user__name" id="userName">Student</span>
+          <span class="dash-user__role" id="userRole">Student</span>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Logout</button>
+    </div>
   </header>
 
-  <!-- Controls Bar -->
-  <div id="controlsBar" style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;padding:12px 16px;position:fixed;top:56px;left:0;right:0;z-index:999;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-    <input id="busSelect" placeholder="Bus ID (e.g. bus1)" style="flex:1;min-width:150px;padding:10px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:14px;" />
-    <button id="watchBtn" style="background:#2563EB;color:white;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">▶ Watch</button>
-    <button id="stopBtn" style="background:none;border:1px solid #E2E8F0;color:#0F172A;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;display:none;">Stop</button>
-    <button id="notifyBtn" style="background:none;border:1px solid #E2E8F0;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:16px;display:none;">🔔</button>
+  <div class="dash-banner" id="httpsWarning" hidden>
+    ⚠️ Geolocation works best on HTTPS or localhost.
   </div>
-  
-  <main style="position:fixed;top:112px;left:0;right:0;bottom:160px;z-index:1;">
-    <div id="map" style="width:100%;height:100%;background:#F8FAFC;">Loading map...</div>
+
+  <main class="dash-main">
+    <section class="card student-search-bar">
+      <div class="card__body">
+        <input class="input" id="busSelect" placeholder="Bus ID (e.g. bus1)" aria-label="Bus ID" />
+        <button type="button" class="btn btn-primary" id="watchBtn">▶ Watch Bus</button>
+        <button type="button" class="btn btn-ghost is-hidden" id="stopBtn">Stop</button>
+        <button type="button" class="btn btn-ghost is-hidden" id="notifyBtn" title="Arrival notification">🔔 Alert</button>
+      </div>
+    </section>
+
+    <div class="inline-error" id="errorNotice">
+      <span id="errorText"></span>
+      <button type="button" class="btn btn-danger btn-sm" id="retryBtn">Retry</button>
+    </div>
+
+    <section class="card map-card" data-map-card="map" style="margin-bottom:24px">
+      <div class="card__header"><h2 class="card__title">Live Bus Map</h2></div>
+      <div class="map-card__inner">
+        <div class="map-skeleton">Loading map…</div>
+        <div id="map" aria-label="Bus tracking map"></div>
+      </div>
+    </section>
+
+    <section class="tracking-grid" aria-label="Primary metrics">
+      <article class="card track-card">
+        <div class="track-card__icon">🚗</div>
+        <div class="track-card__label">Speed</div>
+        <div class="track-card__value" id="speed">—</div>
+      </article>
+      <article class="card track-card">
+        <div class="track-card__icon">📌</div>
+        <div class="track-card__label">Distance</div>
+        <div class="track-card__value" id="distance">—</div>
+      </article>
+      <article class="card track-card">
+        <div class="track-card__icon">⏱</div>
+        <div class="track-card__label">ETA</div>
+        <div class="track-card__value" id="eta">—</div>
+      </article>
+    </section>
+
+    <section class="tracking-grid tracking-grid--secondary" aria-label="Status details">
+      <article class="card track-card">
+        <div class="track-card__icon">🕐</div>
+        <div class="track-card__label">Last Update</div>
+        <div class="track-card__value" id="lastUpdated" style="font-size:1rem">—</div>
+      </article>
+      <article class="card track-card">
+        <div class="track-card__icon">📍</div>
+        <div class="track-card__label">GPS</div>
+        <div class="track-card__value" id="coordinates" style="font-size:0.85rem;font-family:monospace">—</div>
+      </article>
+      <article class="card track-card">
+        <div class="track-card__icon">🚌</div>
+        <div class="track-card__label">Bus Status</div>
+        <div class="track-card__value" id="busStatus" style="font-size:1rem">Idle</div>
+      </article>
+    </section>
   </main>
 
-  <!-- Info Panel at Bottom -->
-  <div style="position:fixed;bottom:0;left:0;right:0;background:#F8FAFC;border-top:1px solid #E2E8F0;z-index:998;max-height:160px;overflow-y:auto;">
-    <div id="errorNotice" style="background:#FEE2E2;color:#7F1D1D;padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;">
-      <span id="errorText"></span>
-      <button id="retryBtn" style="background:#DC2626;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;">Retry</button>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:12px 16px;">
-      <div style="border-right:1px solid #E2E8F0;padding-right:12px;">
-        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">📍 Last Updated</div>
-        <div id="lastUpdated" style="font-size:14px;font-weight:700;color:#0F172A;">—</div>
-      </div>
-      <div>
-        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">📌 Distance</div>
-        <div id="distance" style="font-size:14px;font-weight:700;color:#0F172A;">—</div>
-      </div>
-      <div style="border-right:1px solid #E2E8F0;padding-right:12px;">
-        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">🚗 Speed</div>
-        <div id="speed" style="font-size:14px;font-weight:700;color:#0F172A;">—</div>
-      </div>
-      <div>
-        <div style="font-size:12px;color:#64748B;font-weight:600;margin-bottom:4px;">🔍 GPS</div>
-        <div id="coordinates" style="font-size:12px;font-family:monospace;color:#0F172A;font-weight:600;">—</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="firebase-config.js"></script>
-
+  <script src="js/notify.js"></script>
+  <script src="js/app.js"></script>
   <script>
-    // ===== Theme Toggle =====
-    function initTheme() {
-      const isDark = localStorage.getItem('busTracker.darkMode') === 'true';
-      if (isDark) document.body.classList.add('dark-mode');
-      updateThemeToggle();
-    }
-    function updateThemeToggle() {
-      const isDark = document.body.classList.contains('dark-mode');
-      document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
-    }
-    document.getElementById('themeToggle').addEventListener('click', () => {
-      document.body.classList.toggle('dark-mode');
-      const isDark = document.body.classList.contains('dark-mode');
-      localStorage.setItem('busTracker.darkMode', isDark);
-      updateThemeToggle();
-    });
-    initTheme();
+    const isSecureOrigin = BusApp.checkSecureOrigin();
 
-    // ===== HTTPS Warning =====
-    const isSecureOrigin = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (!isSecureOrigin) {
-      document.getElementById('httpsWarning').style.display = 'flex';
-    }
-
-    // ===== Map Setup =====
     let map = null;
-    try {
-      const defaultCenter = [10.9974, 76.9589]; // [lat, lng]
-      map = L.map('map').setView(defaultCenter, 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-    } catch (err) {
-      console.error('Leaflet init failed', err);
-      document.getElementById('map').textContent = 'Map init error: ' + (err && err.message || err);
-    }
-
-    // ===== Firebase Setup =====
-    if (!window.FIREBASE_CONFIG || window.FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) {
-      console.warn('firebase-config.js not configured.');
-    }
-    if (!firebase.apps || !firebase.apps.length) {
-      firebase.initializeApp(window.FIREBASE_CONFIG);
-    }
-    const database = firebase.database();
-
-    // ===== State Variables =====
     let marker = null;
     let pulseCircle = null;
     let currentRef = null;
@@ -203,6 +121,8 @@
     let watchTimeoutId = null;
     let notificationEnabled = false;
     let notificationLocation = null;
+    let lastSpeedKmh = 0;
+    let trackingNotifyShown = false;
 
     const busInput = document.getElementById('busSelect');
     const watchBtn = document.getElementById('watchBtn');
@@ -211,150 +131,164 @@
     const errorNotice = document.getElementById('errorNotice');
     const errorText = document.getElementById('errorText');
     const retryBtn = document.getElementById('retryBtn');
+    const headerSearch = document.getElementById('headerSearch');
 
-    // Prefill from login session
     const savedBus = localStorage.getItem('busTracker.busId');
-    if (savedBus) { 
-      busInput.value = savedBus;
-    }
+    if (savedBus) busInput.value = savedBus;
 
-    // ===== Haversine Formula (Calculate distance & speed) =====
+    headerSearch.addEventListener('input', function () {
+      busInput.value = headerSearch.value;
+    });
+    busInput.addEventListener('input', function () {
+      headerSearch.value = busInput.value;
+    });
+
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(window.FIREBASE_CONFIG);
+    }
+    const database = firebase.database();
+
     function haversineDistance(lat1, lng1, lat2, lng2) {
-      const R = 6371; // Earth's radius in km
+      const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLng/2) * Math.sin(dLng/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c; // Distance in km
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    // ===== Custom Bus Marker =====
     function createBusMarker(latLng) {
-      const iconHtml = `
-        <div class="bus-marker">🚌</div>
-      `;
       return L.marker(latLng, {
         icon: L.divIcon({
-          html: iconHtml,
+          html: '<div class="bus-marker">🚌</div>',
           className: 'bus-marker-wrapper',
           iconSize: [40, 40],
-          iconAnchor: [20, 20],
-          popupAnchor: [0, -20]
+          iconAnchor: [20, 20]
         })
       });
     }
 
-    // ===== Pulsing Circle Animation =====
     function addPulsingCircle(latLng) {
       if (pulseCircle) map.removeLayer(pulseCircle);
       pulseCircle = L.circle(latLng, {
         radius: 100,
         color: '#2563EB',
         weight: 2,
-        opacity: 0.3,
+        opacity: 0.35,
         fill: false,
         className: 'pulse-circle'
       }).addTo(map);
     }
 
-    // ===== Update Info Panel =====
+    function updateEta(distKm, speedKmh) {
+      const etaEl = document.getElementById('eta');
+      if (!distKm || distKm <= 0) {
+        etaEl.textContent = '—';
+        return;
+      }
+      const speed = speedKmh > 5 ? speedKmh : 25;
+      const hours = distKm / speed;
+      const mins = Math.round(hours * 60);
+      if (mins < 1) etaEl.textContent = '<1 min';
+      else if (mins < 60) etaEl.textContent = mins + ' min';
+      else etaEl.textContent = Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+    }
+
     function updateInfoPanel(busData) {
       const now = Date.now();
       lastUpdateTime = busData.timestamp || now;
       const secondsAgo = Math.floor((now - lastUpdateTime) / 1000);
-      let timeText = '';
-      if (secondsAgo < 60) timeText = `Updated ${secondsAgo}s ago`;
-      else if (secondsAgo < 3600) timeText = `Updated ${Math.floor(secondsAgo/60)}m ago`;
-      else timeText = `Updated ${Math.floor(secondsAgo/3600)}h ago`;
+      let timeText = 'Just now';
+      if (secondsAgo >= 60 && secondsAgo < 3600) timeText = Math.floor(secondsAgo / 60) + 'm ago';
+      else if (secondsAgo >= 3600) timeText = Math.floor(secondsAgo / 3600) + 'h ago';
+      else if (secondsAgo > 5) timeText = secondsAgo + 's ago';
+
       document.getElementById('lastUpdated').textContent = timeText;
+      document.getElementById('coordinates').textContent =
+        busData.lat.toFixed(4) + '°, ' + busData.lng.toFixed(4) + '°';
+      document.getElementById('busStatus').textContent = 'Live';
 
-      // Coordinates
-      document.getElementById('coordinates').textContent = 
-        `${busData.lat.toFixed(4)}°, ${busData.lng.toFixed(4)}°`;
-
-      // Distance
+      let distKm = 0;
       if (studentLocation) {
-        const dist = haversineDistance(studentLocation[0], studentLocation[1], busData.lat, busData.lng);
-        document.getElementById('distance').textContent = dist.toFixed(2) + ' km';
+        distKm = haversineDistance(studentLocation[0], studentLocation[1], busData.lat, busData.lng);
+        document.getElementById('distance').textContent = distKm.toFixed(2) + ' km';
       }
 
-      // Speed calculation
       if (previousBusLocation && currentBusLocation) {
-        const distKm = haversineDistance(previousBusLocation[0], previousBusLocation[1], currentBusLocation[0], currentBusLocation[1]);
-        const timeSeconds = (busData.timestamp - (lastUpdateTime - 10000)) / 1000;
-        if (timeSeconds > 0) {
-          const speedKmh = (distKm / timeSeconds) * 3600;
-          document.getElementById('speed').textContent = speedKmh.toFixed(1) + ' km/h';
-        }
+        const dist = haversineDistance(
+          previousBusLocation[0], previousBusLocation[1],
+          currentBusLocation[0], currentBusLocation[1]
+        );
+        const timeSeconds = Math.max(1, (busData.timestamp - (lastUpdateTime - 10000)) / 1000);
+        lastSpeedKmh = (dist / timeSeconds) * 3600;
+        document.getElementById('speed').textContent = lastSpeedKmh.toFixed(1) + ' km/h';
       }
+
+      updateEta(distKm, lastSpeedKmh);
     }
 
-    // ===== Display Error Notice =====
     function showError(message) {
-      errorNotice.style.display = 'flex';
       errorText.textContent = message;
+      errorNotice.classList.add('is-visible');
+      document.getElementById('busStatus').textContent = 'No signal';
+      BusNotify.error(message);
     }
 
     function hideError() {
-      errorNotice.style.display = 'none';
+      errorNotice.classList.remove('is-visible');
     }
 
-    // ===== Draw Trail (Breadcrumb) =====
     function drawTrail(trail) {
-      if (!trail || !Array.isArray(trail) || trail.length < 2) return;
-      const coords = trail.map(point => {
-        if (typeof point === 'object' && point.lat && point.lng) {
-          return [point.lat, point.lng];
-        } else if (Array.isArray(point) && point.length === 2) {
-          return point;
-        }
+      if (!trail || trail.length < 2) return;
+      const coords = trail.map(function (point) {
+        if (point && point.lat && point.lng) return [point.lat, point.lng];
+        if (Array.isArray(point) && point.length === 2) return point;
         return null;
-      }).filter(c => c);
-
+      }).filter(Boolean);
       if (coords.length < 2) return;
-      
       if (trailLine) map.removeLayer(trailLine);
-      trailLine = L.polyline(coords, { 
-        color: '#f97316', 
-        weight: 3, 
-        opacity: 0.6,
-        className: 'bus-trail'
-      }).addTo(map);
+      trailLine = L.polyline(coords, { color: '#F59E0B', weight: 3, opacity: 0.65 }).addTo(map);
     }
 
-    // ===== Start Watching Bus =====
     function startWatching() {
       const busId = busInput.value.trim();
-      if (!busId) { alert('Enter bus id'); return; }
+      if (!busId) {
+        BusNotify.warning('Enter a bus ID to start tracking');
+        return;
+      }
 
+      if (window.BusLoader) window.BusLoader.show('Fetching bus ' + busId + ' location…');
       hideError();
-      watchBtn.style.display = 'none';
-      stopBtn.style.display = 'block';
-      notifyBtn.style.display = 'block';
+      watchBtn.classList.add('is-hidden');
+      stopBtn.classList.remove('is-hidden');
+      notifyBtn.classList.remove('is-hidden');
 
-      // Get student location
       if (!studentLocation && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => { studentLocation = [pos.coords.latitude, pos.coords.longitude]; },
-          () => { studentLocation = [10.9974, 76.9589]; }
+          function (pos) {
+            studentLocation = [pos.coords.latitude, pos.coords.longitude];
+          },
+          function () {
+            studentLocation = [10.9974, 76.9589];
+          }
         );
       }
 
       if (currentRef) currentRef.off();
-      currentRef = database.ref(`buses/${busId}/location`);
+      currentRef = database.ref('buses/' + busId + '/location');
 
-      // Set 10-second timeout
+      trackingNotifyShown = false;
       if (watchTimeoutId) clearTimeout(watchTimeoutId);
-      watchTimeoutId = setTimeout(() => {
-        showError('Bus not started yet or no signal. Try again soon.');
+      watchTimeoutId = setTimeout(function () {
+        if (window.BusLoader) window.BusLoader.hide();
+        showError('Bus not started yet or no signal.');
       }, 10000);
 
-      currentRef.on('value', snap => {
+      currentRef.on('value', function (snap) {
+        if (window.BusLoader) window.BusLoader.hide();
         clearTimeout(watchTimeoutId);
         const d = snap.val();
-        
+
         if (d && d.lat && d.lng) {
           hideError();
           const busLatLng = [d.lat, d.lng];
@@ -371,109 +305,112 @@
 
           map.setView(busLatLng, 15);
           updateInfoPanel(d);
+          if (!trackingNotifyShown) {
+            trackingNotifyShown = true;
+            BusNotify.info('Tracking started for ' + busId);
+          }
 
-          // Draw trail if available
-          database.ref(`buses/${busId}/trail`).once('value', trailSnap => {
+          database.ref('buses/' + busId + '/trail').once('value', function (trailSnap) {
             const trail = trailSnap.val();
             if (trail) drawTrail(Array.isArray(trail) ? trail : Object.values(trail));
           });
 
-          // Check for push notification
           if (notificationEnabled && notificationLocation) {
-            const dist = haversineDistance(busLatLng[0], busLatLng[1], notificationLocation[0], notificationLocation[1]);
-            if (dist < 0.5) { // 500 meters
-              showNotification('Your bus is arriving soon!');
+            const dist = haversineDistance(
+              busLatLng[0], busLatLng[1],
+              notificationLocation[0], notificationLocation[1]
+            );
+            if (dist < 0.5) {
+              showPushNotification('Your bus is arriving soon!');
               notificationEnabled = false;
-              notifyBtn.textContent = '🔔';
+              notifyBtn.textContent = '🔔 Alert';
+              BusNotify.success('Your bus is arriving soon!');
             }
           }
 
           previousBusLocation = currentBusLocation;
         } else {
-          showError('Bus not started yet or no signal. Try again soon.');
+          showError('Bus not started yet or no signal.');
         }
-      }, err => {
+      }, function (err) {
+        if (window.BusLoader) window.BusLoader.hide();
         showError('Firebase error: ' + err.message);
       });
     }
 
-    // ===== Stop Watching =====
     function stopWatching() {
-      if (currentRef) { 
-        currentRef.off(); 
-        currentRef = null; 
-        stopBtn.style.display = 'none';
-        watchBtn.style.display = 'block';
-        notifyBtn.style.display = 'none';
-        if (watchTimeoutId) clearTimeout(watchTimeoutId);
-      }
+      if (!currentRef) return;
+      currentRef.off();
+      currentRef = null;
+      stopBtn.classList.add('is-hidden');
+      watchBtn.classList.remove('is-hidden');
+      notifyBtn.classList.add('is-hidden');
+      if (watchTimeoutId) clearTimeout(watchTimeoutId);
+      document.getElementById('busStatus').textContent = 'Stopped';
+      BusNotify.warning('Tracking stopped');
     }
 
-    // ===== Push Notifications =====
-    function showNotification(title) {
+    function showPushNotification(title) {
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Bus Tracker', { 
-          body: title,
-          icon: '🚌',
-          badge: '🚌'
-        });
+        new Notification('Bus Tracker', { body: title });
       }
     }
 
-    notifyBtn.addEventListener('click', async () => {
+    notifyBtn.addEventListener('click', async function () {
       if (!notificationEnabled) {
-        // Request permission
         if ('Notification' in window) {
-          if (Notification.permission === 'granted') {
-            enableNotification();
-          } else if (Notification.permission !== 'denied') {
-            const permission = await Notification.requestPermission();
-            if (permission === 'granted') enableNotification();
-          }
+          if (Notification.permission === 'granted') enableNotification();
+          else if (Notification.permission !== 'denied') {
+            const p = await Notification.requestPermission();
+            if (p === 'granted') enableNotification();
+          } else BusNotify.warning('Enable notifications in browser settings');
         }
       } else {
         notificationEnabled = false;
-        notifyBtn.textContent = '🔔';
+        notifyBtn.textContent = '🔔 Alert';
+        BusNotify.info('Arrival alert disabled');
       }
     });
 
     function enableNotification() {
-      // Prompt user to click on map for their location
-      alert('Click on the map to mark your stop location for notifications.');
-      map.once('click', (e) => {
+      BusNotify.info('Click the map to set your stop for arrival alerts');
+      map.once('click', function (e) {
         notificationLocation = [e.latlng.lat, e.latlng.lng];
         notificationEnabled = true;
-        notifyBtn.textContent = '🔔✓';
+        notifyBtn.textContent = '🔔 On';
         L.marker(notificationLocation, {
           icon: L.divIcon({
-            html: '<div style="font-size:24px;">📍</div>',
-            className: 'stop-marker',
-            iconSize: [30, 30],
-            iconAnchor: [15, 15]
+            html: '<div style="font-size:22px">📍</div>',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
           })
         }).addTo(map);
+        BusNotify.success('Arrival alert zone set');
       });
     }
 
-    // ===== Event Listeners =====
+    document.getElementById('notifBell').addEventListener('click', function () {
+      BusNotify.info('Use Alert to get notified when the bus is nearby');
+    });
+
     watchBtn.addEventListener('click', startWatching);
     stopBtn.addEventListener('click', stopWatching);
-    retryBtn.addEventListener('click', () => {
+    retryBtn.addEventListener('click', function () {
       hideError();
       startWatching();
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      localStorage.removeItem('busTracker.role');
-      localStorage.removeItem('busTracker.busId');
-      localStorage.removeItem('busTracker.name');
-      location.href = 'login.html';
-    });
-
-    // Service worker registration
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
+    try {
+      map = L.map('map').setView([10.9974, 76.9589], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+      map.whenReady(function () {
+        BusApp.hideMapSkeleton('map');
+        setTimeout(function () { map.invalidateSize(); }, 100);
+      });
+    } catch (err) {
+      BusNotify.error('Map failed to load');
     }
   </script>
+  <script src="loader.js"></script>
 </body>
 </html>

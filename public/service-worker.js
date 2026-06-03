@@ -1,5 +1,5 @@
 // Service Worker for Bus Tracker PWA
-const CACHE_NAME = 'bus-tracker-v1';
+const CACHE_NAME = 'bus-tracker-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,7 +7,11 @@ const ASSETS_TO_CACHE = [
   '/driver.html',
   '/student.html',
   '/admin.html',
-  '/styles.css',
+  '/css/dashboard.css',
+  '/js/app.js',
+  '/js/notify.js',
+  '/loader.css',
+  '/loader.js',
   '/firebase-config.js',
   '/manifest.json',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',

@@ -1,0 +1,233 @@
+/* Bus Tracker — global loader overlay */
+#bt-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #F8FAFC;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+#bt-loader.bt-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+#bt-loader .bt-scene {
+  position: relative;
+  width: min(420px, 92vw);
+  height: 200px;
+  margin-bottom: 28px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #7DD3FC 0%, #BAE6FD 45%, #EFF6FF 100%);
+  box-shadow: 0 12px 40px rgba(37, 99, 235, 0.12);
+}
+
+#bt-loader .bt-sun {
+  position: absolute;
+  top: 18px;
+  right: 28px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #FACC15;
+  box-shadow: 0 0 24px rgba(250, 204, 21, 0.6);
+  animation: bt-sun-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes bt-sun-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+#bt-loader .bt-cloud {
+  position: absolute;
+  background: #fff;
+  border-radius: 50px;
+  opacity: 0.9;
+  animation: bt-cloud-drift 8s linear infinite;
+}
+
+#bt-loader .bt-cloud::before,
+#bt-loader .bt-cloud::after {
+  content: '';
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+}
+
+#bt-loader .bt-cloud-1 {
+  width: 56px;
+  height: 20px;
+  top: 32px;
+  left: -60px;
+}
+
+#bt-loader .bt-cloud-1::before { width: 24px; height: 24px; top: -10px; left: 8px; }
+#bt-loader .bt-cloud-1::after { width: 32px; height: 28px; top: -14px; left: 22px; }
+
+#bt-loader .bt-cloud-2 {
+  width: 48px;
+  height: 18px;
+  top: 58px;
+  left: -80px;
+  animation-duration: 11s;
+  animation-delay: -3s;
+}
+
+#bt-loader .bt-cloud-2::before { width: 20px; height: 20px; top: -8px; left: 6px; }
+#bt-loader .bt-cloud-2::after { width: 26px; height: 22px; top: -10px; left: 18px; }
+
+@keyframes bt-cloud-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(520px); }
+}
+
+#bt-loader .bt-road {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  background: #334155;
+}
+
+#bt-loader .bt-lane {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 200%;
+  height: 4px;
+  margin-top: -2px;
+  background: repeating-linear-gradient(
+    90deg,
+    #FACC15 0,
+    #FACC15 24px,
+    transparent 24px,
+    transparent 48px
+  );
+  animation: bt-lane-move 0.8s linear infinite;
+}
+
+@keyframes bt-lane-move {
+  from { transform: translateX(0); }
+  to { transform: translateX(-48px); }
+}
+
+#bt-loader .bt-bus-wrap {
+  position: absolute;
+  bottom: 38px;
+  left: -80px;
+  animation: bt-bus-drive 3.2s ease-in-out infinite;
+}
+
+@keyframes bt-bus-drive {
+  0% { transform: translateX(0); }
+  45% { transform: translateX(340px); }
+  55% { transform: translateX(340px); }
+  100% { transform: translateX(0); }
+}
+
+#bt-loader .bt-bus-svg {
+  width: 72px;
+  height: auto;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+#bt-loader .bt-wheel {
+  transform-origin: center;
+  animation: bt-wheel-spin 0.6s linear infinite;
+}
+
+@keyframes bt-wheel-spin {
+  to { transform: rotate(360deg); }
+}
+
+#bt-loader .bt-exhaust {
+  position: absolute;
+  bottom: 44px;
+  left: -12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.5);
+  animation: bt-exhaust 1.2s ease-out infinite;
+}
+
+#bt-loader .bt-exhaust:nth-child(2) { animation-delay: 0.4s; left: -20px; bottom: 48px; }
+#bt-loader .bt-exhaust:nth-child(3) { animation-delay: 0.8s; left: -28px; bottom: 42px; }
+
+@keyframes bt-exhaust {
+  0% { opacity: 0.7; transform: scale(0.6) translateX(0); }
+  100% { opacity: 0; transform: scale(1.4) translateX(-16px); }
+}
+
+#bt-loader .bt-progress {
+  width: min(280px, 80vw);
+  height: 6px;
+  background: #E2E8F0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+#bt-loader .bt-fill {
+  height: 100%;
+  width: 35%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563EB, #0EA5E9, #2563EB);
+  background-size: 200% 100%;
+  animation: bt-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes bt-shimmer {
+  0% { transform: translateX(-100%); background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { transform: translateX(320%); background-position: 0% 50%; }
+}
+
+#bt-loader .bt-msg {
+  color: #1E293B;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  min-height: 1.4em;
+  transition: opacity 0.25s ease;
+}
+
+#bt-loader .bt-msg.bt-fade {
+  opacity: 0;
+}
+
+#bt-loader .bt-dots {
+  display: flex;
+  gap: 8px;
+}
+
+#bt-loader .bt-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563EB;
+  animation: bt-dot-bounce 1s ease-in-out infinite;
+}
+
+#bt-loader .bt-dot:nth-child(2) { animation-delay: 0.15s; background: #0EA5E9; }
+#bt-loader .bt-dot:nth-child(3) { animation-delay: 0.3s; background: #FACC15; }
+
+@keyframes bt-dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-8px); }
+}
+
+html.bt-page-ready #bt-loader:not(.bt-visible) {
+  pointer-events: none;
+}

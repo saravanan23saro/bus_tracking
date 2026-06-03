@@ -3,216 +3,242 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#1a2b4a">
+  <meta name="theme-color" content="#2563EB">
   <link rel="manifest" href="manifest.json">
   <title>Admin — Bus Tracker</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="styles.css" />
-  <style>
-    main.app-main {
-      display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 0;
-      padding-top: 68px;
-      padding-bottom: 0;
-    }
-    #map {
-      height: calc(100vh - 68px);
-      border-radius: 0;
-      border: none;
-    }
-    .bus-list {
-      overflow-y: auto;
-      max-height: calc(100vh - 68px);
-      border-left: 1px solid var(--border);
-    }
-    body.dark-mode .bus-list {
-      border-left-color: rgba(255, 255, 255, 0.1);
-    }
-    @media (max-width: 768px) {
-      main.app-main {
-        grid-template-columns: 1fr;
-      }
-      .bus-list {
-        max-height: 200px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="loader.css" />
 </head>
-<body>
-  <header class="app-header">
-    <div class="title">🚌 All Buses</div>
-    <button id="themeToggle" class="theme-toggle" title="Toggle dark mode">🌙</button>
-    <button id="logoutBtn" class="btn ghost" style="margin-left:auto;">Logout</button>
+<body data-page="admin">
+  <header class="dash-header">
+    <div class="dash-header__left">
+      <span class="dash-logo" aria-hidden="true">🚌</span>
+      <div class="dash-title-wrap">
+        <h1 class="dash-title">Admin Dashboard</h1>
+        <p class="dash-subtitle">Fleet overview</p>
+      </div>
+    </div>
+    <div class="dash-header__center">
+      <input type="search" class="dash-search" id="busSearch" placeholder="Search buses…" aria-label="Search buses" />
+    </div>
+    <div class="dash-header__right">
+      <button type="button" class="dash-icon-btn" id="notifBell" title="Alerts" aria-label="Notifications">🔔</button>
+      <button type="button" class="dash-icon-btn" id="themeToggle" aria-label="Toggle theme">🌙</button>
+      <div class="dash-user">
+        <span class="dash-user__avatar" id="userAvatar">A</span>
+        <div class="dash-user__meta">
+          <span class="dash-user__name" id="userName">Admin</span>
+          <span class="dash-user__role" id="userRole">Admin</span>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Logout</button>
+    </div>
   </header>
 
-  <main class="app-main">
-    <div id="map">Loading map...</div>
-    <div class="bus-list">
-      <div id="busList" style="padding:12px;"></div>
-    </div>
+  <div class="dash-banner" id="httpsWarning" hidden>
+    ⚠️ Use HTTPS for the best experience on all dashboards.
+  </div>
+
+  <main class="dash-main">
+    <section class="stats-grid" aria-label="Fleet statistics">
+      <article class="card stat-card stat-card--primary">
+        <span class="stat-card__label">Total Buses</span>
+        <span class="stat-card__value" id="statTotal">0</span>
+      </article>
+      <article class="card stat-card stat-card--success">
+        <span class="stat-card__label">Active</span>
+        <span class="stat-card__value" id="statActive">0</span>
+      </article>
+      <article class="card stat-card stat-card--danger">
+        <span class="stat-card__label">Offline</span>
+        <span class="stat-card__value" id="statOffline">0</span>
+      </article>
+      <article class="card stat-card stat-card--accent">
+        <span class="stat-card__label">Students</span>
+        <span class="stat-card__value" id="statStudents">—</span>
+      </article>
+    </section>
+
+    <section class="admin-split">
+      <aside class="card bus-list-panel">
+        <div class="card__header">
+          <h2 class="card__title">Bus List</h2>
+        </div>
+        <div class="card__body" id="busList" role="list"></div>
+      </aside>
+
+      <div class="card map-card" data-map-card="map">
+        <div class="card__header">
+          <h2 class="card__title">Live Tracking Map</h2>
+        </div>
+        <div class="map-card__inner">
+          <div class="map-skeleton" id="mapSkeleton">Loading map…</div>
+          <div id="map" role="application" aria-label="Live bus map"></div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="firebase-config.js"></script>
-
+  <script src="js/notify.js"></script>
+  <script src="js/app.js"></script>
   <script>
-    // ===== Theme Toggle =====
-    function initTheme() {
-      const isDark = localStorage.getItem('busTracker.darkMode') === 'true';
-      if (isDark) document.body.classList.add('dark-mode');
-      updateThemeToggle();
-    }
-    function updateThemeToggle() {
-      const isDark = document.body.classList.contains('dark-mode');
-      document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
-    }
-    document.getElementById('themeToggle').addEventListener('click', () => {
-      document.body.classList.toggle('dark-mode');
-      const isDark = document.body.classList.contains('dark-mode');
-      localStorage.setItem('busTracker.darkMode', isDark);
-      updateThemeToggle();
-    });
-    initTheme();
+    const INACTIVE_THRESHOLD = 5 * 60 * 1000;
+    let map = null;
+    const busMarkers = {};
+    const busListEl = document.getElementById('busList');
+    const busSearch = document.getElementById('busSearch');
+    let allBusesCache = {};
 
-    // Verify admin role
     const role = localStorage.getItem('busTracker.role');
     if (role !== 'admin') {
-      alert('Access denied. Admin only.');
-      location.href = 'login.html';
+      BusNotify.error('Access denied. Admin only.');
+      setTimeout(function () { location.href = 'login.html'; }, 1200);
     }
 
-    // ===== Map Setup =====
-    let map = null;
-    try {
-      const defaultCenter = [10.9974, 76.9589]; // [lat, lng]
-      map = L.map('map').setView(defaultCenter, 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-    } catch (err) {
-      console.error('Leaflet init failed', err);
-      document.getElementById('map').textContent = 'Map init error: ' + (err && err.message || err);
+    function flattenBus(busId, raw) {
+      const loc = raw && raw.location ? raw.location : {};
+      return {
+        id: busId,
+        lat: loc.lat,
+        lng: loc.lng,
+        timestamp: loc.timestamp,
+        driver: loc.driver || raw.driver || '—',
+        status: raw.status || 'unknown'
+      };
     }
 
-    // ===== Firebase Setup =====
-    if (!firebase.apps || !firebase.apps.length) {
-      firebase.initializeApp(window.FIREBASE_CONFIG);
+    function isActive(bus) {
+      return bus.timestamp && (Date.now() - bus.timestamp) <= INACTIVE_THRESHOLD;
     }
-    const database = firebase.database();
 
-    // ===== State =====
-    const busMarkers = {}; // busId -> marker
-    const busList = document.getElementById('busList');
-    const INACTIVE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+    function updateStats(buses) {
+      const entries = Object.keys(buses);
+      let active = 0;
+      let offline = 0;
+      entries.forEach(function (id) {
+        const b = flattenBus(id, buses[id]);
+        if (b.lat && b.lng && isActive(b)) active++;
+        else offline++;
+      });
+      document.getElementById('statTotal').textContent = entries.length;
+      document.getElementById('statActive').textContent = active;
+      document.getElementById('statOffline').textContent = offline;
+      document.getElementById('statStudents').textContent = localStorage.getItem('busTracker.studentCount') || '—';
+    }
 
-    // ===== Create Bus Marker =====
-    function createBusMarker(latLng, busId, color = '#f97316') {
-      const iconHtml = `<div style="font-size:24px;">🚌</div>`;
+    function createBusMarker(latLng, busId) {
       return L.marker(latLng, {
         icon: L.divIcon({
-          html: iconHtml,
+          html: '<div style="font-size:22px">🚌</div>',
           className: 'bus-marker-wrapper',
           iconSize: [30, 30],
           iconAnchor: [15, 15]
         })
-      }).bindPopup(`Bus ID: ${busId}`);
+      }).bindPopup('Bus: ' + busId);
     }
 
-    // ===== Update Bus List =====
-    function updateBusList(buses) {
-      busList.innerHTML = '';
+    function renderBusList(buses, filter) {
+      busListEl.innerHTML = '';
+      const q = (filter || '').toLowerCase();
       const now = Date.now();
 
-      Object.entries(buses).forEach(([busId, busData]) => {
-        const isInactive = !busData.timestamp || (now - busData.timestamp) > INACTIVE_THRESHOLD;
-        
+      Object.entries(buses).forEach(function ([busId, raw]) {
+        if (q && !busId.toLowerCase().includes(q)) return;
+        const bus = flattenBus(busId, raw);
+        const online = bus.lat && bus.lng && isActive(bus);
         const item = document.createElement('div');
-        item.className = `bus-item ${isInactive ? 'inactive' : ''}`;
-        
-        const statusDot = document.createElement('div');
-        statusDot.className = `bus-status ${isInactive ? 'offline' : ''}`;
-        
-        const label = document.createElement('div');
-        label.className = 'bus-label';
-        label.innerHTML = `<strong>${busId}</strong>`;
-        
-        const time = document.createElement('div');
-        time.className = 'bus-time';
-        if (busData.timestamp) {
-          const secondsAgo = Math.floor((now - busData.timestamp) / 1000);
-          if (secondsAgo < 60) time.textContent = `${secondsAgo}s ago`;
-          else if (secondsAgo < 3600) time.textContent = `${Math.floor(secondsAgo/60)}m ago`;
-          else time.textContent = `${Math.floor(secondsAgo/3600)}h ago`;
-        } else {
-          time.textContent = 'Never';
+        item.className = 'bus-item' + (online ? '' : ' inactive');
+        item.setAttribute('role', 'listitem');
+
+        let timeText = 'Never';
+        if (bus.timestamp) {
+          const s = Math.floor((now - bus.timestamp) / 1000);
+          if (s < 60) timeText = s + 's ago';
+          else if (s < 3600) timeText = Math.floor(s / 60) + 'm ago';
+          else timeText = Math.floor(s / 3600) + 'h ago';
         }
-        
-        item.appendChild(statusDot);
-        item.appendChild(label);
-        item.appendChild(time);
-        
-        item.addEventListener('click', () => {
-          if (busData.lat && busData.lng) {
-            map.setView([busData.lat, busData.lng], 15);
+
+        item.innerHTML =
+          '<div class="bus-status' + (online ? '' : ' offline') + '"></div>' +
+          '<div class="bus-label"><strong>' + busId + '</strong>' +
+          '<span class="bus-meta">Driver: ' + bus.driver + ' · ' + (online ? 'Online' : 'Offline') + '</span></div>' +
+          '<span class="bus-time">' + timeText + '</span>';
+
+        item.addEventListener('click', function () {
+          if (bus.lat && bus.lng && map) {
+            map.setView([bus.lat, bus.lng], 15);
+            BusNotify.info('Focused on bus ' + busId);
+          } else {
+            BusNotify.warning('No live location for ' + busId);
           }
         });
-        
-        busList.appendChild(item);
+        busListEl.appendChild(item);
       });
+
+      if (!busListEl.children.length) {
+        busListEl.innerHTML = '<p class="bus-meta" style="padding:16px;text-align:center">No buses found</p>';
+      }
     }
 
-    // ===== Monitor All Buses =====
     function monitorAllBuses() {
-      database.ref('buses').on('value', snap => {
+      const database = firebase.database();
+      database.ref('buses').on('value', function (snap) {
         const buses = snap.val() || {};
+        allBusesCache = buses;
         const now = Date.now();
+        updateStats(buses);
+        renderBusList(buses, busSearch.value);
 
-        Object.entries(buses).forEach(([busId, busData]) => {
-          if (!busData.location) return;
-
-          const { lat, lng, timestamp } = busData.location;
-          if (!lat || !lng) return;
-
-          const isInactive = !timestamp || (now - timestamp) > INACTIVE_THRESHOLD;
-
-          // Update or create marker
+        Object.entries(buses).forEach(function ([busId, raw]) {
+          const bus = flattenBus(busId, raw);
+          if (!bus.lat || !bus.lng) return;
           if (busMarkers[busId]) {
-            busMarkers[busId].setLatLng([lat, lng]);
+            busMarkers[busId].setLatLng([bus.lat, bus.lng]);
           } else {
-            busMarkers[busId] = createBusMarker([lat, lng], busId);
+            busMarkers[busId] = createBusMarker([bus.lat, bus.lng], busId);
             busMarkers[busId].addTo(map);
           }
         });
-
-        updateBusList(buses);
       });
 
-      // Refresh list every 30 seconds to update times
-      setInterval(() => {
-        database.ref('buses').once('value', snap => {
-          const buses = snap.val() || {};
-          updateBusList(buses);
-        });
+      setInterval(function () {
+        renderBusList(allBusesCache, busSearch.value);
+        updateStats(allBusesCache);
       }, 30000);
     }
 
-    // ===== Event Listeners =====
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      localStorage.removeItem('busTracker.role');
-      localStorage.removeItem('busTracker.busId');
-      localStorage.removeItem('busTracker.name');
-      location.href = 'login.html';
+    busSearch.addEventListener('input', function () {
+      renderBusList(allBusesCache, busSearch.value);
     });
 
-    // Service worker registration
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
+    document.getElementById('notifBell').addEventListener('click', function () {
+      BusNotify.info('Fleet monitoring is active. Buses update in real time.');
+    });
+
+    try {
+      map = L.map('map').setView([10.9974, 76.9589], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+      map.whenReady(function () {
+        BusApp.hideMapSkeleton('map');
+        setTimeout(function () { map.invalidateSize(); }, 100);
+      });
+    } catch (err) {
+      console.error(err);
+      BusNotify.error('Map failed to load.');
     }
 
-    // Start monitoring
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(window.FIREBASE_CONFIG);
+    }
+
     monitorAllBuses();
+    BusNotify.info('Admin dashboard loaded');
   </script>
+  <script src="loader.js"></script>
 </body>
 </html>

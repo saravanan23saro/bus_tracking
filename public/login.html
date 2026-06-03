@@ -248,6 +248,7 @@
       border-color: var(--primary);
     }
   </style>
+  <link rel="stylesheet" href="loader.css"/>
 </head>
 <body>
   <!-- Floating bus decorations -->
@@ -421,9 +422,15 @@
         localStorage.setItem('busTracker.driverPin', pin);
       }
 
-      // Navigate
+      // Navigate with loader
       const page = role === 'admin' ? 'admin.html' : role === 'driver' ? 'driver.html' : 'student.html';
-      location.href = page;
+      const msg = role === 'admin'
+        ? 'Loading admin panel…'
+        : role === 'driver'
+          ? 'Loading driver dashboard…'
+          : 'Loading student dashboard…';
+      if (window.BusLoader) window.BusLoader.show(msg);
+      setTimeout(function () { window.location.href = page; }, 950);
     }
 
     // Service worker registration
@@ -431,5 +438,6 @@
       navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
     }
   </script>
+  <script src="loader.js"></script>
 </body>
 </html>
